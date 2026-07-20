@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "TrackFlow",
+    "slug": "trackflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "trackflow",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "TrackFlow reports your location so your fleet can track this device."
+      }
+    },
+    "android": {
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": ["expo-location", "expo-notifications", "expo-secure-store"],
+    "extra": {
+      "apiBaseUrl": "http://localhost:8787"
+    }
+  }
+}

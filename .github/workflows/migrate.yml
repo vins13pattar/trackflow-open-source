@@ -1,0 +1,63 @@
+name: DB migrate + RLS
+
+# One-click, manual-only runner for the single imperative setup step that
+# dashboard env vars don't cover: applying migrations and provisioning the
+# non-superuser app role + RLS policies against a real (e.g. Neon) database.
+#
+# Configure these repository secrets first (Settings → Secrets and variables →
+# Actions):
+#   ADMIN_DATABASE_URL  - the Neon OWNER role URL (runs migrations + RLS setup)
+#   APP_DB_PASSWORD     - password to set for the runtime app role
+#   DATABASE_URL        - (optional) the non-superuser app-role URL; if set, the
+#                         RLS isolation test runs to PROVE tenant isolation.
+# Optional variable:
+#   APP_DB_ROLE         - runtime role name (defaults to trackflow_app)
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "migrate" to confirm running against the configured database'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    if: ${{ github.event.inputs.confirm == 'migrate' }}
+    runs-on: ubuntu-latest
+    env:
+      ADMIN_DATABASE_URL: ${{ secrets.ADMIN_DATABASE_URL }}
+      APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
+      APP_DB_ROLE: ${{ vars.APP_DB_ROLE || 'trackflow_app' }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Guard against an unset database URL
+        run: |
+          if [ -z "$ADMIN_DATABASE_URL" ]; then
+            echo "::error::ADMIN_DATABASE_URL secret is not set."; exit 1
+          fi
+
+      - name: Apply migrations
+        run: pnpm --filter @trackflow/db db:migrate
+
+      - name: Provision app role + RLS policies
+        run: pnpm --filter @trackflow/db db:rls
+
+      - name: Verify restore coherence (migrations/RLS/partitioning)
+        run: pnpm --filter @trackflow/db db:verify-restore
+
+      - name: Prove tenant isolation (only if the app-role URL is provided)
+        if: ${{ env.DATABASE_URL != '' }}
+        env:
+          TF_DB_TESTS: '1'
+        run: pnpm --filter @trackflow/db test

@@ -1,0 +1,26 @@
+{
+  "name": "@trackflow/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "sim": "tsx sim/simulator.ts",
+    "seed": "tsx sim/seed-fleet.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trackflow/protocols": "workspace:*",
+    "@trackflow/shared": "workspace:*",
+    "mqtt": "^5.15.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,12 @@
+**/node_modules
+.git
+.turbo
+**/.turbo
+**/dist
+**/.next
+graphify-out
+apps/mobile
+**/*.log
+.env
+.env.*
+!.env.example
