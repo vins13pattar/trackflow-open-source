@@ -10,3 +10,5 @@ packages:
 blockExoticSubdeps: true
 minimumReleaseAge: 10080
 trustPolicy: no-downgrade
+trustPolicyExclude:
+  - tailwind-merge@2.6.1
