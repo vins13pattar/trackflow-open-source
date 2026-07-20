@@ -1,0 +1,12 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  # The Expo app is installed/built with its own toolchain (native modules don't
+  # play well with workspace hoisting), so it's excluded from the JS workspace.
+  - '!apps/mobile'
+
+# Supply-chain controls for pnpm 10. Existing lockfile entries remain reproducible,
+# while newly resolved packages must meet these trust and age requirements.
+blockExoticSubdeps: true
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade

@@ -1,0 +1,32 @@
+{
+  "name": "@trackflow/jobs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "rollup": "tsx src/rollup.ts",
+    "report": "tsx src/report.ts",
+    "retention": "tsx src/retention.ts",
+    "subscriptions": "tsx src/subscriptions.ts",
+    "ingest-health": "tsx src/ingest-health.ts",
+    "notify-retry": "tsx src/notify-retry.ts",
+    "scheduler": "tsx src/scheduler.ts",
+    "start": "tsx src/scheduler.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trackflow/core": "workspace:*",
+    "@trackflow/db": "workspace:*",
+    "@trackflow/notifications": "workspace:*",
+    "@trackflow/shared": "workspace:*",
+    "@trackflow/storage": "workspace:*",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "devices" ADD COLUMN "online" boolean DEFAULT false NOT NULL;

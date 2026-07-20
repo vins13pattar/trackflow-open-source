@@ -1,0 +1,55 @@
+{
+  "name": "trackflow",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "TrackFlow — hybrid-serverless, low-cost multi-tenant GPS tracking SaaS",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vins13pattar/trackflow-open-source.git"
+  },
+  "homepage": "https://github.com/vins13pattar/trackflow-open-source#readme",
+  "bugs": {
+    "url": "https://github.com/vins13pattar/trackflow-open-source/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:protocols": "pnpm --filter @trackflow/protocols test",
+    "db:up": "docker compose up -d postgres redis",
+    "db:down": "docker compose down",
+    "ingest:dev": "pnpm --filter @trackflow/ingest dev",
+    "ingest:sim": "pnpm --filter @trackflow/ingest sim",
+    "api:dev": "pnpm --filter @trackflow/api dev",
+    "web:dev": "pnpm --filter @trackflow/web dev",
+    "jobs:rollup": "pnpm --filter @trackflow/jobs rollup",
+    "jobs:report": "pnpm --filter @trackflow/jobs report",
+    "jobs:retention": "pnpm --filter @trackflow/jobs retention",
+    "jobs:subscriptions": "pnpm --filter @trackflow/jobs subscriptions",
+    "jobs:ingest-health": "pnpm --filter @trackflow/jobs ingest-health",
+    "jobs:notify-retry": "pnpm --filter @trackflow/jobs notify-retry",
+    "jobs:scheduler": "pnpm --filter @trackflow/jobs scheduler"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"],
+    "overrides": {
+      "shell-quote": ">=1.8.4"
+    }
+  }
+}

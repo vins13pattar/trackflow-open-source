@@ -1,0 +1,89 @@
+groups:
+  - name: trackflow-slo
+    rules:
+      # --- Availability / liveness ---
+      - alert: APIDown
+        expr: up{job="trackflow-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: TrackFlow API is down
+          runbook: docs/RUNBOOKS.md (general first moves)
+
+      - alert: IngestDown
+        expr: up{job="trackflow-ingest"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: Ingest is down — devices cannot connect
+          runbook: docs/RUNBOOKS.md RB-1
+
+      # --- API error budget (99.95% target → 0.05% error budget) ---
+      # Fast burn: 5xx ratio > 2% over 5m (burns a month's budget in hours).
+      - alert: APIHighErrorRateFast
+        expr: |
+          sum(rate(http_requests_total{job="trackflow-api",status=~"5.."}[5m]))
+            / sum(rate(http_requests_total{job="trackflow-api"}[5m])) > 0.02
+        for: 5m
+        labels: { severity: critical, burn: fast }
+        annotations:
+          summary: API 5xx ratio > 2% (fast error-budget burn)
+
+      # Slow burn: 5xx ratio > 0.5% over 1h.
+      - alert: APIHighErrorRateSlow
+        expr: |
+          sum(rate(http_requests_total{job="trackflow-api",status=~"5.."}[1h]))
+            / sum(rate(http_requests_total{job="trackflow-api"}[1h])) > 0.005
+        for: 1h
+        labels: { severity: warning, burn: slow }
+        annotations:
+          summary: API 5xx ratio > 0.5% over 1h (slow error-budget burn)
+
+      # --- Latency SLO (PRD §6.1: API p95 < 300ms) ---
+      - alert: APILatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="trackflow-api"}[10m])) by (le)) > 0.3
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: API p95 latency > 300ms (PRD SLO breach)
+
+      # --- Ingest health ---
+      - alert: IngestNoActiveConnections
+        expr: sum(ingest_active_connections) == 0
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: No devices connected to ingest for 10m (possible outage)
+          runbook: docs/RUNBOOKS.md RB-1
+
+      - alert: IngestDecodeErrors
+        expr: sum(rate(ingest_decode_errors_total[10m])) > 0.1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Sustained ingest decoder errors (malformed frames or a decoder bug)
+
+      - alert: IngestSinkErrors
+        expr: sum(rate(ingest_sink_errors_total[5m])) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: Ingest is failing to forward fixes to the API sink
+
+      # --- Scheduler / jobs ---
+      # A job that hasn't succeeded in over 26h (daily jobs + headroom).
+      - alert: JobStale
+        expr: time() - max by (job) (job_last_success_timestamp_seconds) > 93600
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Scheduler job {{ $labels.job }} has not succeeded in >26h"
+
+      - alert: JobFailing
+        expr: sum by (job) (rate(job_runs_total{status="failed"}[1h])) > 0
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "Scheduler job {{ $labels.job }} is failing"

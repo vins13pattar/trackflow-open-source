@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+        env:
+          POSTGRES_USER: trackflow
+          POSTGRES_PASSWORD: trackflow
+          POSTGRES_DB: trackflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trackflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ADMIN_DATABASE_URL: postgres://trackflow:trackflow@localhost:5432/trackflow
+      DATABASE_URL: postgres://trackflow_app:trackflow_app@localhost:5432/trackflow
+      TF_DB_TESTS: '1'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm --filter @trackflow/db db:migrate
+      - run: pnpm --filter @trackflow/db db:rls
+      - run: pnpm test
+      - run: pnpm build
+      # Load-test gate: boot the API and fail the build if the ingest write
+      # path regresses past the p95 budget (tune P95_BUDGET_MS as infra changes).
+      - name: Load-test gate (ingest p95)
+        run: |
+          pnpm --filter @trackflow/api start &
+          API_PID=$!
+          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8787/health >/dev/null && break; sleep 1; done
+          set +e
+          P95_BUDGET_MS=1000 N=1000 CONCURRENCY=50 node loadtest/run.mjs
+          STATUS=$?
+          set -e
+          kill "$API_PID" 2>/dev/null || true
+          exit $STATUS
+
+  mobile-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      # Mobile is excluded from the pnpm workspace (native module hoisting
+      # conflicts), so we install it standalone with npm inside its directory.
+      - run: npm ci --legacy-peer-deps
+      - run: npm test

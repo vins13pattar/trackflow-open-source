@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --danger: 0 84% 60%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 243 75% 59%;
+    --radius: 0.7rem;
+  }
+
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+    --card: 222 44% 10%;
+    --card-foreground: 210 40% 98%;
+    --muted: 217 33% 16%;
+    --muted-foreground: 215 20% 65%;
+    --primary: 243 75% 66%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --success: 142 69% 49%;
+    --warning: 38 92% 55%;
+    --danger: 0 84% 64%;
+    --border: 217 33% 18%;
+    --input: 217 33% 20%;
+    --ring: 243 75% 66%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* MapLibre dark-friendly popup + control overrides */
+.maplibregl-popup-content {
+  @apply rounded-lg border border-border bg-card text-card-foreground shadow-xl;
+  padding: 0;
+}
+.maplibregl-popup-tip {
+  border-top-color: hsl(var(--card)) !important;
+  border-bottom-color: hsl(var(--card)) !important;
+}
+.maplibregl-ctrl-group {
+  @apply border border-border bg-card !important;
+}
+.maplibregl-ctrl-group button + button {
+  border-top-color: hsl(var(--border)) !important;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-muted-foreground/30;
+}
+
+/* Live device markers (created imperatively by MapLibre) */
+.tf-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  color: #fff;
+  background: hsl(var(--success));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.tf-marker[data-status='offline'] {
+  background: hsl(var(--danger));
+}
+.tf-marker[data-status='inactive'] {
+  background: hsl(var(--muted-foreground));
+}
+.tf-marker[data-selected='true'] {
+  background: hsl(var(--primary));
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.3), 0 2px 6px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+/* Trail playback scrubber marker */
+.tf-playhead {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: hsl(var(--warning));
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px hsl(var(--warning) / 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}

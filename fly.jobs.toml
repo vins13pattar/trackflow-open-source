@@ -1,0 +1,24 @@
+# TrackFlow jobs scheduler on Fly.io. One small always-on machine running the
+# in-repo scheduler (rollup / retention / subscriptions / report / notify-retry
+# / ingest-health). Lives at the repo root so the build context is the workspace.
+# Deploy:  fly deploy --config fly.jobs.toml
+# No public service: /health + /metrics on 9101 are scraped over Fly 6PN.
+# (Alternative: drop this machine and run each job as a Fly Machines cron.)
+app = "trackflow-jobs"
+primary_region = "bom" # Mumbai — match the API/DB region
+
+[build]
+  dockerfile = "apps/jobs/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  JOBS_HTTP_PORT = "9101"
+  # DATABASE_URL, notification keys, METRICS_TOKEN, etc. are set as secrets:
+  #   fly secrets set ... -a trackflow-jobs
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[[restart]]
+  policy = "always"

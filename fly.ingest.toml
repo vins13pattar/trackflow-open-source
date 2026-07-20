@@ -1,0 +1,84 @@
+# TrackFlow ingest on Fly.io. Always-on raw-TCP servers (one machine binds all
+# protocol ports). Lives at the repo root so the build context is the workspace root.
+# Deploy:  fly deploy --config fly.ingest.toml
+# Raw TCP needs a dedicated IPv4:  fly ips allocate-v4 -a trackflow-ingest
+# DNS: point gps.trackflow.vinodspattar.in at that IPv4 as a DNS-only (grey-cloud)
+# A record — Cloudflare's free proxy only handles HTTP(S), not raw GPS TCP ports.
+app = "trackflow-ingest"
+primary_region = "bom" # Mumbai — match the API/DB region
+
+[build]
+  dockerfile = "apps/ingest/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  INGEST_GT06_PORT = "5023"
+  INGEST_H02_PORT = "5013"
+  INGEST_TELTONIKA_PORT = "5027"
+  INGEST_NMEA_PORT = "5004"
+  INGEST_QUECLINK_PORT = "5073"
+  INGEST_MEITRACK_PORT = "5020"
+  INGEST_HTTP_PORT = "9100" # health + Prometheus /metrics (scraped over Fly 6PN)
+  # INGEST_SINK_URL + INGEST_SINK_TOKEN (and METRICS_TOKEN, UPSTASH_*, SENTRY_DSN)
+  # are set as secrets:  fly secrets set ... -a trackflow-ingest
+
+# Keep one machine running — devices maintain persistent connections.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+# One public TCP service per protocol port. The 9100 health/metrics port is NOT
+# published here — Prometheus scrapes it over Fly's private 6PN network.
+[[services]]
+  protocol = "tcp"
+  internal_port = 5023
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  [[services.ports]]
+    port = 5023
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 5013
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  [[services.ports]]
+    port = 5013
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 5027
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  [[services.ports]]
+    port = 5027
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 5004
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  [[services.ports]]
+    port = 5004
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 5073
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  [[services.ports]]
+    port = 5073
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 5020
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  [[services.ports]]
+    port = 5020

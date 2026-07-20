@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Published RFC 6238 Appendix B TOTP test vector"
+paths = ['''packages/shared/src/totp\.test\.ts''']
+regexes = ['''GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ''']
