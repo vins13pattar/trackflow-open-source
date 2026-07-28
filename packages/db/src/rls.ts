@@ -76,10 +76,15 @@ export async function applyRls(db: Database): Promise<void> {
  * `role`/`password` come from operator config, not user input.
  */
 export function appRoleStatements(role: string, password: string): string[] {
+  // PostgreSQL identifiers cannot be parameterized in this bootstrap DDL.
+  // Constrain the operator-controlled role to a plain identifier and escape
+  // the password literal so a malformed secret cannot change the statement.
+  if (!/^[a-z_][a-z0-9_]{0,62}$/i.test(role)) throw new Error('Invalid PostgreSQL application role name');
+  const escapedPassword = password.replaceAll("'", "''");
   return [
     `DO $$ BEGIN
        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${role}') THEN
-         CREATE ROLE ${role} LOGIN PASSWORD '${password}' NOSUPERUSER NOBYPASSRLS;
+         CREATE ROLE ${role} LOGIN PASSWORD '${escapedPassword}' NOSUPERUSER NOBYPASSRLS;
        END IF;
      END $$;`,
     `GRANT USAGE ON SCHEMA public TO ${role};`,

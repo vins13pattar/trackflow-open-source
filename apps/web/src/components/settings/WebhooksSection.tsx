@@ -17,6 +17,7 @@ export function WebhooksSection() {
   const [events, setEvents] = useState<string[]>(['alert.triggered']);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [newSecret, setNewSecret] = useState<string | null>(null);
   const [tested, setTested] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<Record<string, WebhookDeliveryEntry[]>>({});
@@ -40,7 +41,8 @@ export function WebhooksSection() {
     setSubmitting(true);
     setError(null);
     try {
-      await api.createWebhook({ name, url, events });
+      const created = await api.createWebhook({ name, url, events });
+      setNewSecret(created.secret ?? null);
       setName('');
       setUrl('');
       setEvents(['alert.triggered']);
@@ -116,6 +118,12 @@ export function WebhooksSection() {
           ))}
         </div>
         {error && <p className="text-sm text-danger">{error}</p>}
+        {newSecret && (
+          <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+            <p className="font-medium">Copy this signing secret now. It will not be shown again.</p>
+            <code className="mt-1 block break-all text-xs">{newSecret}</code>
+          </div>
+        )}
         <Button type="submit" disabled={submitting || events.length === 0}>
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           Add webhook
@@ -141,7 +149,6 @@ export function WebhooksSection() {
                   <p className="truncate font-mono text-xs text-muted-foreground">{w.url}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{w.events.join(', ')}</p>
                   <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                    <code className="rounded bg-muted px-1.5 py-0.5">{w.secret.slice(0, 16)}…</code>
                     <span className="text-success">{w.successCount} ok</span>
                     {w.failureCount > 0 && <span className="text-danger">{w.failureCount} failed</span>}
                     {w.lastSuccessAt && <span>last {timeAgo(w.lastSuccessAt)}</span>}

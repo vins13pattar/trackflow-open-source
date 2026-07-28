@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.7",
+    "@hono/node-server": "^2.0.5",
     "@node-saml/node-saml": "^5.1.0",
     "@trackflow/core": "workspace:*",
     "@trackflow/db": "workspace:*",

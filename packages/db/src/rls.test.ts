@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, type Database } from './index.js';
-import { devices, tenants } from './schema.js';
-import { withSystem, withTenant } from './rls.js';
-import { inArray } from 'drizzle-orm';
+import { devices, positions, tenants } from './schema.js';
+import { appRoleStatements, withSystem, withTenant } from './rls.js';
+import { eq, inArray } from 'drizzle-orm';
 
 // Requires a running Postgres with RLS already applied (`pnpm db:rls`) and
 // connecting as the NON-superuser app role (superusers bypass RLS). Gated so
@@ -14,6 +14,13 @@ const url =
 function imei(): string {
   return String(Math.floor(Math.random() * 9e14) + 1e14);
 }
+
+describe('RLS bootstrap SQL', () => {
+  it('rejects unsafe role identifiers and escapes password literals', () => {
+    expect(() => appRoleStatements('role; DROP TABLE tenants', 'secret')).toThrow(/role name/);
+    expect(appRoleStatements('trackflow_app', "it's-a-secret")[0]).toContain("PASSWORD 'it''s-a-secret'");
+  });
+});
 
 describe.skipIf(!enabled)('Row-Level Security tenant isolation', () => {
   let db: Database;
@@ -36,6 +43,12 @@ describe.skipIf(!enabled)('Row-Level Security tenant isolation', () => {
     d2 = (await withTenant(db, t2, async (tx) =>
       (await tx.insert(devices).values({ tenantId: t2, name: 'B-1', imei: i2 }).returning())[0]!,
     )).id;
+    await withTenant(db, t1, (tx) =>
+      tx.insert(positions).values({ tenantId: t1, deviceId: d1, lat: 12.9, lon: 77.6, fixTime: new Date('2026-07-28T00:00:01Z') }),
+    );
+    await withTenant(db, t2, (tx) =>
+      tx.insert(positions).values({ tenantId: t2, deviceId: d2, lat: 13, lon: 77.7, fixTime: new Date('2026-07-28T00:00:02Z') }),
+    );
   });
 
   afterAll(async () => {
@@ -67,5 +80,26 @@ describe.skipIf(!enabled)('Row-Level Security tenant isolation', () => {
     await expect(
       withTenant(db, t1, (tx) => tx.insert(devices).values({ tenantId: t2, name: 'evil', imei: imei() })),
     ).rejects.toThrow();
+  });
+
+  it('isolates updates and deletes targeting another tenant', async () => {
+    const updated = await withTenant(db, t1, (tx) =>
+      tx.update(devices).set({ name: 'cross-tenant update' }).where(eq(devices.id, d2)).returning(),
+    );
+    const deleted = await withTenant(db, t1, (tx) => tx.delete(devices).where(eq(devices.id, d2)).returning());
+    expect(updated).toHaveLength(0);
+    expect(deleted).toHaveLength(0);
+  });
+
+  it('applies isolation across a device-position join', async () => {
+    const rows = await withTenant(db, t1, (tx) =>
+      tx
+        .select({ deviceTenantId: devices.tenantId, positionTenantId: positions.tenantId })
+        .from(positions)
+        .innerJoin(devices, eq(positions.deviceId, devices.id))
+        .where(inArray(devices.id, [d1, d2])),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({ deviceTenantId: t1, positionTenantId: t1 });
   });
 });
