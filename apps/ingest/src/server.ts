@@ -7,7 +7,7 @@ import { startMqttSubscriber } from './mqtt.js';
 import { installProcessHandlers, reportError, reportIngestError } from './observability.js';
 import { createPresenceStore } from './presence.js';
 import { getSessionStore } from './session-store.js';
-import { forwardMessage } from './sink.js';
+import { drainForwarder, forwardMessage } from './sink.js';
 
 installProcessHandlers();
 const registry = defaultRegistry();
@@ -16,11 +16,14 @@ const presence = createPresenceStore();
 const POD_ID = process.env.INGEST_POD_ID ?? env.instanceId;
 const MAX_BUFFER = 64 * 1024; // guard against unbounded growth from junk input
 
-function startListener(port: number, protocolName: string): void {
+const sockets = new Set<net.Socket>();
+
+function startListener(port: number, protocolName: string): net.Server {
   const decoder = registry.get(protocolName);
   if (!decoder) throw new Error(`No decoder registered for ${protocolName}`);
 
   const server = net.createServer((socket) => {
+    sockets.add(socket);
     const ctx = new SessionContext();
     let buffer = Buffer.alloc(0);
     const peer = `${socket.remoteAddress}:${socket.remotePort}`;
@@ -34,14 +37,14 @@ function startListener(port: number, protocolName: string): void {
       if (imei && !ctx.imei) {
         ctx.setImei(imei);
         imeiPersisted = true;
-        console.log(`[ingest:${protocolName}] restored imei=${imei} for ${peer}`);
+        if (env.trafficLog) console.log(`[ingest:${protocolName}] restored imei=${imei} for ${peer}`);
       }
     });
     // The IMEI bound for this socket in the presence registry, so we can refresh
     // on activity and release exactly that binding on close.
     let boundImei: string | null = null;
     metrics.connectionOpened(protocolName);
-    console.log(`[ingest:${protocolName}] connection from ${peer}`);
+    if (env.trafficLog) console.log(`[ingest:${protocolName}] connection from ${peer}`);
 
     // Claim (or refresh) this device's presence on the current instance. Cheap
     // and idempotent, so calling it on every fix just keeps the TTL warm.
@@ -86,8 +89,7 @@ function startListener(port: number, protocolName: string): void {
         if (imei) markPresence(imei);
         // Forward anything carrying a position or telemetry attributes.
         if (imei && (msg.position || msg.attributes)) {
-          metrics.forwarded(protocolName);
-          void forwardMessage({
+          const accepted = forwardMessage({
             imei,
             protocol: decoder.protocol,
             kind: msg.kind,
@@ -95,11 +97,12 @@ function startListener(port: number, protocolName: string): void {
             attributes: msg.attributes,
             alarmType: msg.alarmType,
           });
+          if (accepted) metrics.forwarded(protocolName);
         }
         const pos = msg.position
           ? ` ${msg.position.latitude.toFixed(5)},${msg.position.longitude.toFixed(5)} ${Math.round(msg.position.speedKph)}kph`
           : '';
-        console.log(`[ingest:${protocolName}] ${msg.kind} imei=${imei ?? '?'}${pos}`);
+        if (env.trafficLog) console.log(`[ingest:${protocolName}] ${msg.kind} imei=${imei ?? '?'}${pos}`);
       }
     });
 
@@ -108,8 +111,9 @@ function startListener(port: number, protocolName: string): void {
       reportError(err, { protocol: protocolName, peer });
     });
     socket.on('close', () => {
+      sockets.delete(socket);
       metrics.connectionClosed(protocolName);
-      console.log(`[ingest:${protocolName}] ${peer} disconnected`);
+      if (env.trafficLog) console.log(`[ingest:${protocolName}] ${peer} disconnected`);
       // Release only our own presence binding — if the device already reconnected
       // to another instance, that newer presence must not be evicted. The IMEI
       // session binding is deliberately NOT forgotten: it stays alive briefly so
@@ -123,14 +127,37 @@ function startListener(port: number, protocolName: string): void {
 
   server.on('error', (err) => reportIngestError(err, { where: `listener:${protocolName}`, port }));
   server.listen(port, () => console.log(`[ingest] ${protocolName} listening on tcp/${port}`));
+  return server;
 }
 
-startListener(env.gt06Port, 'gt06');
-startListener(env.h02Port, 'h02');
-startListener(env.teltonikaPort, 'teltonika');
-startListener(env.nmeaPort, 'nmea');
-startListener(env.queclinkPort, 'queclink');
-startListener(env.meitrackPort, 'meitrack');
+const tcpServers = [
+  startListener(env.gt06Port, 'gt06'),
+  startListener(env.h02Port, 'h02'),
+  startListener(env.teltonikaPort, 'teltonika'),
+  startListener(env.nmeaPort, 'nmea'),
+  startListener(env.queclinkPort, 'queclink'),
+  startListener(env.meitrackPort, 'meitrack'),
+];
 void startMqttSubscriber();
-startHttpServer();
+const httpServer = startHttpServer();
 console.log(`[ingest] pod ${POD_ID} forwarding positions to`, env.sinkUrl);
+
+let shuttingDown = false;
+async function shutdown(signal: NodeJS.Signals): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[ingest] ${signal}: stopping listeners and draining sink queue`);
+  for (const server of tcpServers) server.close();
+  for (const socket of sockets) socket.end();
+
+  const drained = await drainForwarder(env.shutdownTimeoutMs);
+  if (!drained) {
+    console.warn(`[ingest] drain timed out after ${env.shutdownTimeoutMs}ms; closing ${sockets.size} socket(s)`);
+    for (const socket of sockets) socket.destroy();
+  }
+  httpServer.close(() => process.exit(drained ? 0 : 1));
+  setTimeout(() => process.exit(1), 1_000).unref();
+}
+
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
+process.once('SIGINT', () => void shutdown('SIGINT'));

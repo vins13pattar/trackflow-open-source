@@ -27,7 +27,7 @@ interface Session {
 export interface MqttHandlerDeps {
   registry?: ProtocolRegistry;
   /** Replaceable for tests; defaults to forwardMessage. */
-  forward?: (m: MessageForward) => Promise<void> | void;
+  forward?: (m: MessageForward) => Promise<void | boolean> | void | boolean;
   /** Replaceable for tests; defaults to console.log. */
   log?: (...args: unknown[]) => void;
 }

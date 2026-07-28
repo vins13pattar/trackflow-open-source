@@ -13,6 +13,9 @@ import type { Attributes, DecodeContext, DecodeResult, DecodedMessage, Decoder, 
 
 const CODEC_8 = 0x08;
 const CODEC_8E = 0x8e;
+// Larger payloads are not credible for Codec 8 telemetry and would otherwise
+// make a TCP session retain an attacker-controlled length until MAX_BUFFER.
+export const MAX_TELTONIKA_DATA_LENGTH = 60 * 1024;
 
 interface AvlParse {
   position: Position;
@@ -177,6 +180,10 @@ export class TeltonikaDecoder implements Decoder {
         continue;
       }
       const dataLength = buffer.readUInt32BE(offset + 4);
+      if (dataLength < 3 || dataLength > MAX_TELTONIKA_DATA_LENGTH) {
+        offset += 1;
+        continue;
+      }
       const frameLen = 8 + dataLength + 4;
       if (buffer.length - offset < frameLen) break;
 
@@ -189,15 +196,31 @@ export class TeltonikaDecoder implements Decoder {
 
       const codecId = data.readUInt8(0);
       const count = data.readUInt8(1);
+      if ((codecId !== CODEC_8 && codecId !== CODEC_8E) || count > 128) {
+        offset += frameLen;
+        continue;
+      }
       const raw = Buffer.from(buffer.subarray(offset, offset + frameLen));
       let p = 2;
       const records: DecodedMessage[] = [];
-      for (let i = 0; i < count; i++) {
-        const { position, attributes, next } = parseRecord(data, p, codecId);
-        records.push({ protocol: this.protocol, kind: 'location', imei: ctx.imei, position, attributes, raw });
-        p = next;
+      let valid = true;
+      try {
+        for (let i = 0; i < count; i++) {
+          const { position, attributes, next } = parseRecord(data, p, codecId);
+          records.push({ protocol: this.protocol, kind: 'location', imei: ctx.imei, position, attributes, raw });
+          p = next;
+        }
+        // count2 must exist, match count1, and be the final byte in the body.
+        valid = p === data.length - 1 && data.readUInt8(p) === count;
+      } catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+        valid = false;
       }
 
+      if (!valid) {
+        offset += frameLen;
+        continue;
+      }
       const reply = Buffer.alloc(4);
       reply.writeUInt32BE(count, 0);
       if (records.length > 0) {
