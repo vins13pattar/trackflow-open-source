@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "kind": "trackflow-postgres-restore-drill",
+  "measurement": "direct",
+  "startedAt": "2026-07-28T16:58:15.971Z",
+  "finishedAt": "2026-07-28T16:58:17.445Z",
+  "environment": {
+    "hostname": "Vinods-MacBook-Air.local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "dockerContainer": "trackflow-postgres",
+    "sourceDatabase": "trackflow",
+    "scratchDatabase": "trackflow_restore_drill"
+  },
+  "backup": {
+    "format": "PostgreSQL custom",
+    "sizeBytes": 126569,
+    "durationMs": 161.376709
+  },
+  "restore": {
+    "durationMs": 317.32620799999995,
+    "validations": {
+      "syntheticMarkerRows": 1,
+      "migrationsApplied": 27,
+      "positionsRelkind": "p",
+      "forcedRlsTables": 23
+    }
+  },
+  "achieved": {
+    "rpo": "0 for this consistent local snapshot",
+    "rtoMs": 317.32620799999995
+  },
+  "intentionallyExcluded": [
+    "Redis presence, session and rate-limit state",
+    "Object-storage reports and exports",
+    "Provider-side notification and payment records",
+    "DNS and deployment-platform configuration"
+  ],
+  "limitations": [
+    "Local Docker restore is not a managed-service point-in-time recovery test.",
+    "The source database contains synthetic test data and does not represent production volume."
+  ]
+}

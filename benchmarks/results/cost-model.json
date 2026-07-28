@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "kind": "trackflow-capacity-cost-model",
+  "classification": "estimated-not-billed",
+  "pricingSnapshot": {
+    "asOf": "2026-07-28",
+    "currency": "USD",
+    "fly": {
+      "shared1x256": 2.02,
+      "shared1x512": 3.32,
+      "shared2x1g": 6.64,
+      "shared2x2g": 11.83,
+      "shared2x4g": 22.22,
+      "indiaEgressPerGb": 0.12,
+      "source": "https://fly.io/docs/about/pricing/"
+    },
+    "neon": {
+      "launchCuHour": 0.106,
+      "scaleCuHour": 0.222,
+      "storageGbMonth": 0.35,
+      "source": "https://neon.com/pricing"
+    },
+    "upstash": {
+      "fixed250Mb": 10,
+      "fixed5Gb": 100,
+      "fixed50Gb": 400,
+      "productionHaAddon": 200,
+      "source": "https://upstash.com/pricing/redis"
+    },
+    "vercel": {
+      "proBase": 20,
+      "source": "https://vercel.com/pricing"
+    },
+    "r2": {
+      "storageGbMonth": 0.015,
+      "freeStorageGbMonth": 10,
+      "source": "https://developers.cloudflare.com/r2/pricing/"
+    }
+  },
+  "assumptions": {
+    "daysPerMonth": 30,
+    "retentionDays": 90,
+    "movingHoursPerDay": 8,
+    "movingIntervalSeconds": 30,
+    "stationaryHoursPerDay": 16,
+    "stationaryIntervalSeconds": 300,
+    "storedPositionAndIndexBytes": 250,
+    "ingestToApiPayloadBytes": 350,
+    "notificationEventsPerDeviceMonth": 1.5,
+    "estimatedNotificationUnitUsd": 0.005,
+    "reportStorageGbPerThousandDevices": 0.5,
+    "compressedBackupRatio": 0.2,
+    "positionsPerDeviceDay": 1152
+  },
+  "tiers": [
+    {
+      "devices": 1000,
+      "classification": "estimate",
+      "monthlyPositions": 34560000,
+      "retainedPositionGb": 25.92,
+      "crossServiceGb": 12.096,
+      "reportGb": 0.5,
+      "compressedLogicalBackupGb": 5.184000000000001,
+      "components": {
+        "flyIngest": 6.64,
+        "flyApi": 6.64,
+        "flyJobs": 2.02,
+        "neonCompute": 19.345,
+        "neonStorage": 9.072,
+        "redis": 10,
+        "vercelWeb": 20,
+        "flyCrossServiceEgress": 1.45152,
+        "logsAndMetricsAllowance": 10,
+        "r2ReportsAndLogicalBackups": 0,
+        "notifications": 7.5
+      },
+      "leanMonthlyUsd": 92.66852,
+      "haMonthlyUsd": 292.66852,
+      "leanCostPerActiveDeviceUsd": 0.09266852,
+      "haCostPerActiveDeviceUsd": 0.29266852,
+      "largestCostDrivers": [
+        {
+          "name": "vercelWeb",
+          "monthlyUsd": 20
+        },
+        {
+          "name": "neonCompute",
+          "monthlyUsd": 19.345
+        },
+        {
+          "name": "redis",
+          "monthlyUsd": 10
+        }
+      ],
+      "requiredChanges": [
+        "Second ingest instance plus TCP load-balancer health/drain validation",
+        "Redis-backed API fan-out"
+      ]
+    },
+    {
+      "devices": 10000,
+      "classification": "estimate",
+      "monthlyPositions": 345600000,
+      "retainedPositionGb": 259.2,
+      "crossServiceGb": 120.96,
+      "reportGb": 5,
+      "compressedLogicalBackupGb": 51.84,
+      "components": {
+        "flyIngest": 23.66,
+        "flyApi": 13.28,
+        "flyJobs": 3.32,
+        "neonCompute": 162.06,
+        "neonStorage": 90.71999999999998,
+        "redis": 100,
+        "vercelWeb": 20,
+        "flyCrossServiceEgress": 14.515199999999998,
+        "logsAndMetricsAllowance": 30,
+        "r2ReportsAndLogicalBackups": 0.7026,
+        "notifications": 75
+      },
+      "leanMonthlyUsd": 533.2578,
+      "haMonthlyUsd": 733.2578,
+      "leanCostPerActiveDeviceUsd": 0.053325779999999996,
+      "haCostPerActiveDeviceUsd": 0.07332578,
+      "largestCostDrivers": [
+        {
+          "name": "neonCompute",
+          "monthlyUsd": 162.06
+        },
+        {
+          "name": "redis",
+          "monthlyUsd": 100
+        },
+        {
+          "name": "neonStorage",
+          "monthlyUsd": 90.71999999999998
+        }
+      ],
+      "requiredChanges": [
+        "Measured multi-instance Redis fan-out",
+        "Connection-aware ingest placement",
+        "Database/query benchmark gate"
+      ]
+    },
+    {
+      "devices": 50000,
+      "classification": "estimate",
+      "monthlyPositions": 1728000000,
+      "retainedPositionGb": 1296,
+      "crossServiceGb": 604.8,
+      "reportGb": 25,
+      "compressedLogicalBackupGb": 259.2,
+      "components": {
+        "flyIngest": 88.88,
+        "flyApi": 47.32,
+        "flyJobs": 13.28,
+        "neonCompute": 648.24,
+        "neonStorage": 453.59999999999997,
+        "redis": 400,
+        "vercelWeb": 20,
+        "flyCrossServiceEgress": 72.576,
+        "logsAndMetricsAllowance": 100,
+        "r2ReportsAndLogicalBackups": 4.1129999999999995,
+        "notifications": 375
+      },
+      "leanMonthlyUsd": 2223.009,
+      "haMonthlyUsd": 2423.009,
+      "leanCostPerActiveDeviceUsd": 0.04446018,
+      "haCostPerActiveDeviceUsd": 0.04846018,
+      "largestCostDrivers": [
+        {
+          "name": "neonCompute",
+          "monthlyUsd": 648.24
+        },
+        {
+          "name": "neonStorage",
+          "monthlyUsd": 453.59999999999997
+        },
+        {
+          "name": "redis",
+          "monthlyUsd": 400
+        }
+      ],
+      "requiredChanges": [
+        "Shard ingest connection ownership",
+        "Queue or log-based durable event handoff",
+        "Read replicas for reporting",
+        "Partition/archive tiering and a contracted HA/SLA posture"
+      ]
+    }
+  ],
+  "exclusions": [
+    "Taxes, support contracts, custom enterprise pricing and engineering labour",
+    "SMS/WhatsApp country-specific provider tariffs beyond the explicit unit hypothesis",
+    "Vercel Enterprise multi-region failover, whose price is custom",
+    "Database historical-storage/PITR overages not shown on the public summary price"
+  ]
+}

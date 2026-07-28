@@ -1,0 +1,73 @@
+name: Benchmark regression
+
+on:
+  pull_request:
+    paths:
+      - 'apps/ingest/**'
+      - 'packages/protocols/**'
+      - 'benchmarks/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/benchmark.yml'
+  schedule:
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+    inputs:
+      devices:
+        description: Synthetic device count (10,000 is a manual release gate)
+        required: true
+        default: '1000'
+        type: choice
+        options: ['1000', '10000']
+
+permissions:
+  contents: read
+
+jobs:
+  tcp-ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Select tier
+        id: tier
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DEVICES: ${{ inputs.devices }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "devices=100" >> "$GITHUB_OUTPUT"
+            echo "duration=8" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "schedule" ]; then
+            echo "devices=1000" >> "$GITHUB_OUTPUT"
+            echo "duration=30" >> "$GITHUB_OUTPUT"
+          else
+            echo "devices=$INPUT_DEVICES" >> "$GITHUB_OUTPUT"
+            if [ "$INPUT_DEVICES" = "10000" ]; then
+              echo "duration=60" >> "$GITHUB_OUTPUT"
+            else
+              echo "duration=30" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - name: Run mixed-protocol TCP benchmark
+        run: >-
+          pnpm benchmark:tcp:local --
+          --devices=${{ steps.tier.outputs.devices }}
+          --duration=${{ steps.tier.outputs.duration }}
+          --interval=1000
+          --connection-rate=500
+          --seed=42
+          --output=benchmarks/results/ci-tcp.json
+      - name: Enforce deterministic regression budget
+        run: node benchmarks/check-result.mjs benchmarks/results/ci-tcp.json ${{ steps.tier.outputs.devices }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tcp-benchmark-${{ steps.tier.outputs.devices }}
+          path: benchmarks/results/ci-tcp.json
+          retention-days: 30

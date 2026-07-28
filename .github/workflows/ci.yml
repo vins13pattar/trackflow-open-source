@@ -42,6 +42,12 @@ jobs:
       - run: pnpm --filter @trackflow/db db:rls
       - run: pnpm test
       - run: pnpm build
+      - name: Validate Prometheus rules
+        run: >-
+          docker run --rm --entrypoint /bin/promtool
+          -v "$PWD/ops/prometheus:/rules:ro"
+          prom/prometheus@sha256:6927e0919a144aa7616fd0137d4816816d42f6b816de3af269ab065250859a62
+          check rules /rules/alerts.yml
       # Load-test gate: boot the API and fail the build if the ingest write
       # path regresses past the p95 budget (tune P95_BUDGET_MS as infra changes).
       - name: Load-test gate (ingest p95)

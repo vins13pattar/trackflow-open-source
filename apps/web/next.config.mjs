@@ -34,6 +34,12 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    // Optional same-origin API proxy for local demos and deployments that
+    // front web + API behind one hostname. The target remains server-only.
+    const target = process.env.API_PROXY_TARGET;
+    return target ? [{ source: '/api/:path*', destination: `${target}/:path*` }] : [];
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

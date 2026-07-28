@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "sim": "tsx sim/simulator.ts",
+    "sim:load": "tsx sim/load.ts",
     "seed": "tsx sim/seed-fleet.ts",
     "test": "vitest run",
     "test:watch": "vitest",
