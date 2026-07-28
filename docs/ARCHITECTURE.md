@@ -125,12 +125,12 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-  DEV["GPS devices"] -- "raw TCP<br/>(A record, no proxy)" --> FLYI["Fly.io: ingest<br/>always-on, multi-instance<br/>presence via Upstash"]
+  DEV["GPS devices"] -- "TLS + device credential<br/>or authenticated legacy gateway" --> FLYI["Fly.io: ingest edge<br/>always-on, multi-instance<br/>admission + presence"]
   USERS["Browsers / mobile"] -- HTTPS --> CF["Cloudflare DNS/WAF"]
   CF --> VERCEL["Vercel: apps/web"]
   CF --> FLYA["Fly.io: apps/api<br/>(Workers-portable)"]
   FLYI -- "HTTP + token" --> FLYA
-  FLYA --> NEON[("Neon Postgres<br/>scales to zero")]
+  FLYA --> NEON[("Neon Postgres<br/>Singapore data plane<br/>scales to zero")]
   FLYA --> UP[("Upstash Redis")]
   CRON["apps/jobs scheduler"] --> NEON
   CRON --> R2b[("Cloudflare R2")]
@@ -142,3 +142,7 @@ flowchart LR
 Local development replaces all of this with `docker compose` (Postgres 16 + Redis 7) and
 `pnpm api:dev / ingest:dev / web:dev`; a built-in simulator (`pnpm --filter @trackflow/ingest sim`)
 feeds the map without hardware.
+
+The production security profile and cost-conscious regional choice are defined
+in [production-edge-and-topology.md](case-study/production-edge-and-topology.md).
+IMEI-only internet exposure is not the target production identity model.

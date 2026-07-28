@@ -5,7 +5,7 @@ means useful implementation exists but the requested proof is incomplete.
 
 | Goal | Status | Evidence | Remaining proof |
 |---|---|---|---|
-| Security workflow | Partial | Local production audit reports zero vulnerabilities; pinned Gitleaks scan passes | Public workflow cannot turn green until an approved push/PR runs it; Semgrep and SBOM still need CI confirmation |
+| Security workflow | Partial | Local dependency/Gitleaks/Semgrep pass; public scheduled run confirms SAST and SBOM pass and identifies the old-main audit/test-vector failures | Push the remediated branch through an approved PR and require its Security run to pass |
 | Workload model | Complete | `workload-model.md`; reproducible cost assumptions | Replace planning assumptions with production observations if TrackFlow is operated |
 | Device simulator | Complete for requested behaviours | Four protocols, unique IMEIs, fragmentation, invalid/duplicate/out-of-order traffic, clock drift, burst, churn, reconnect and JSON metrics | Validate 10,000-device generator host limits |
 | TCP benchmark | Complete at baseline tier | Versioned before/after JSON and generated report for 1,000 sockets | Run on controlled Linux hardware and add a reconnect-storm time series |

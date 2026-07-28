@@ -21,7 +21,9 @@ directly exercised, and what remains a design target.
   proven high availability.
 
 The detailed [workload model](workload-model.md) defines five tiers. Only the
-local 1,000-connection TCP boundary has direct capacity measurements.
+local 1,000-connection TCP boundary has direct capacity measurements. The
+[production edge/topology decision](production-edge-and-topology.md) defines
+the device credential ladder and cost-conscious first production shape.
 
 ## Architecture
 
@@ -251,7 +253,9 @@ test-vector exception is narrowly scoped. API input uses Zod validation;
 production rejects default secrets; authenticated routes use permission and
 rate-limit middleware; webhooks are HMAC-signed and protected against private
 network targets. The [security report](../../security_best_practices_report.md)
-and pending threat model describe residual risk.
+and [threat model](../../trackflow-open-source-threat-model.md) describe
+residual risk. The [public workflow status](public-security-status.md)
+distinguishes the red scheduled `main` result from the remediated local branch.
 
 The fundamental limitation remains: IMEI is not cryptographic device identity.
 TLS, network admission control, replay detection, and per-device/gateway
@@ -292,7 +296,8 @@ read replicas, and archival tiering.
 
 ## Remaining risks and limitations
 
-- The public Security workflow cannot be confirmed until an approved push/PR.
+- The public Security workflow remains red on the old `main` commit; the two
+  local remediations require an approved push/PR to produce public evidence.
 - API, PostgreSQL, SSE, and domain p50/p95/p99 capacity results are absent.
 - Multiple API/ingest replicas and three infrastructure failure recoveries have
   not been exercised.
