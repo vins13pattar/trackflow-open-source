@@ -14,6 +14,7 @@
 import { SessionContext, defaultRegistry } from '@trackflow/protocols';
 import type { ProtocolRegistry } from '@trackflow/protocols';
 import type mqtt from 'mqtt';
+import { getAdmissionClient, type AdmissionDecision, type AdmissionRequest } from './admission.js';
 import { env } from './env.js';
 import { type MessageForward, forwardMessage } from './sink.js';
 
@@ -30,6 +31,24 @@ export interface MqttHandlerDeps {
   forward?: (m: MessageForward) => Promise<void | boolean> | void | boolean;
   /** Replaceable for tests; defaults to console.log. */
   log?: (...args: unknown[]) => void;
+  /** Replaceable for tests; defaults to the API-backed admission client. */
+  admit?: (request: AdmissionRequest) => Promise<AdmissionDecision>;
+}
+
+export function assertSecureMqttConfig(
+  url: string | undefined,
+  username: string | undefined,
+  password: string | undefined,
+  production: boolean,
+): void {
+  if (!url || !production) return;
+  const protocol = new URL(url).protocol;
+  if (!['mqtts:', 'wss:'].includes(protocol)) {
+    throw new Error('Production MQTT ingest requires mqtts:// or wss:// transport encryption');
+  }
+  if (!username || !password) {
+    throw new Error('Production MQTT ingest requires broker credentials');
+  }
 }
 
 /** Per-IMEI decoder state across publishes. Returned from the factory so tests
@@ -38,6 +57,7 @@ export function createMqttHandler(deps: MqttHandlerDeps = {}) {
   const registry = deps.registry ?? defaultRegistry();
   const forward = deps.forward ?? forwardMessage;
   const log = deps.log ?? ((..._args: unknown[]) => {});
+  const admit = deps.admit ?? ((request) => getAdmissionClient().check(request));
   const sessions = new Map<string, Session>(); // key: `${protocol}/${imei}`
 
   /** Topic format: `trackflow/<protocol>/<imei>/<direction>`. Anything else is
@@ -73,9 +93,22 @@ export function createMqttHandler(deps: MqttHandlerDeps = {}) {
     if (!session.ctx.imei) session.ctx.setImei(meta.imei);
 
     const { messages } = decoder.decode(payload, session.ctx);
+    const decision = await admit({
+      imei: meta.imei,
+      protocol: decoder.protocol,
+      transportSecurity: env.isProduction ? 'private_gateway' : 'development',
+    });
+    if (!decision.allowed) {
+      log(`[ingest:mqtt] rejected imei=${meta.imei} reason=${decision.reason}`);
+      return 0;
+    }
     let forwarded = 0;
     for (const m of messages) {
       const imei = m.imei ?? session.ctx.imei ?? meta.imei;
+      if (imei !== meta.imei) {
+        log(`[ingest:mqtt] rejected topic/frame IMEI mismatch topic=${meta.imei}`);
+        return 0;
+      }
       if (!m.position && !m.attributes) continue;
       await forward({
         imei,
@@ -99,6 +132,7 @@ export async function startMqttSubscriber(): Promise<void> {
     console.log('[ingest:mqtt] INGEST_MQTT_URL not set — skipping MQTT subscriber');
     return;
   }
+  assertSecureMqttConfig(env.mqttUrl, env.mqttUsername, env.mqttPassword, env.isProduction);
   const { default: mqttLib } = await import('mqtt');
   const handler = createMqttHandler({
     log: (...a) => console.log(...a),

@@ -25,6 +25,15 @@ export interface PresenceStore {
   lookup(imei: string): Promise<PresenceEntry | null>;
 }
 
+/** Minimal command surface implemented by standard Redis clients. Keeping the
+ * interface here (instead of importing a vendor SDK) lets each runtime supply
+ * its own lazy connection and keeps the shared package provider-neutral. */
+export interface RedisPresenceClient {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, options: { PX: number }): Promise<unknown>;
+  eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
+}
+
 /** Idle TTL after which a binding is considered stale (refreshed on activity). */
 export const PRESENCE_TTL_MS = 5 * 60 * 1000;
 
@@ -90,6 +99,37 @@ export class UpstashPresenceStore implements PresenceStore {
 
   async lookup(imei: string): Promise<PresenceEntry | null> {
     const instanceId = await this.cmd<string | null>(['GET', this.key(imei)]);
+    return instanceId ? { instanceId, lastSeen: Date.now() } : null;
+  }
+}
+
+const RELEASE_PRESENCE_SCRIPT =
+  "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end";
+
+/** Shared presence over the standard Redis protocol (`redis://`/`rediss://`). */
+export class RedisPresenceStore implements PresenceStore {
+  constructor(
+    private readonly client: RedisPresenceClient,
+    private readonly ttlMs: number = PRESENCE_TTL_MS,
+  ) {}
+
+  private key(imei: string): string {
+    return `presence:${imei}`;
+  }
+
+  async online(imei: string, instanceId: string): Promise<void> {
+    await this.client.set(this.key(imei), instanceId, { PX: this.ttlMs });
+  }
+
+  async offline(imei: string, instanceId: string): Promise<void> {
+    await this.client.eval(RELEASE_PRESENCE_SCRIPT, {
+      keys: [this.key(imei)],
+      arguments: [instanceId],
+    });
+  }
+
+  async lookup(imei: string): Promise<PresenceEntry | null> {
+    const instanceId = await this.client.get(this.key(imei));
     return instanceId ? { instanceId, lastSeen: Date.now() } : null;
   }
 }

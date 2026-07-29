@@ -58,6 +58,8 @@ export const metrics = {
   },
   connectionOpened: (protocol: string) => addGauge('ingest_active_connections', { protocol }, 1),
   connectionClosed: (protocol: string) => addGauge('ingest_active_connections', { protocol }, -1),
+  connectionRejected: (reason: string) => incCounter('ingest_connection_rejected_total', { reason }),
+  admissionRejected: (reason: string) => incCounter('ingest_admission_rejected_total', { reason }),
 };
 
 const COUNTER_HELP: Record<string, string> = {
@@ -69,6 +71,8 @@ const COUNTER_HELP: Record<string, string> = {
   ingest_sink_succeeded_total: 'Messages successfully delivered to the API sink.',
   ingest_sink_retries_total: 'Retry attempts after transient sink failures.',
   ingest_sink_dropped_total: 'Messages shed before delivery, by overload reason.',
+  ingest_connection_rejected_total: 'TCP connections rejected before protocol processing.',
+  ingest_admission_rejected_total: 'Decoded device identities rejected before forwarding.',
 };
 
 /** Render the registry in Prometheus text exposition format. */

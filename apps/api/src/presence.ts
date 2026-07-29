@@ -8,15 +8,28 @@
  * so lookups return null and callers degrade gracefully (the command still
  * queues and is drained on the device's next connect, as before).
  */
-import { MemoryPresenceStore, type PresenceStore, UpstashPresenceStore } from '@trackflow/shared';
+import {
+  MemoryPresenceStore,
+  type PresenceStore,
+  RedisPresenceStore,
+  type RedisPresenceClient,
+  UpstashPresenceStore,
+} from '@trackflow/shared';
 import { env } from './env.js';
+import { redisClient } from './redis.js';
 
 let store: PresenceStore | null = null;
 
 function presenceStore(): PresenceStore {
   if (!store) {
     store =
-      env.upstash.url && env.upstash.token
+      env.redisUrl
+        ? new RedisPresenceStore({
+            get: async (key) => (await redisClient(env.redisUrl!)).get(key),
+            set: async (key, value, options) => (await redisClient(env.redisUrl!)).set(key, value, options),
+            eval: async (script, options) => (await redisClient(env.redisUrl!)).eval(script, options),
+          } satisfies RedisPresenceClient)
+        : env.upstash.url && env.upstash.token
         ? new UpstashPresenceStore(env.upstash.url, env.upstash.token)
         : new MemoryPresenceStore();
   }
@@ -26,7 +39,7 @@ function presenceStore(): PresenceStore {
 /** True only when a shared presence store is configured (cross-process reads
  *  are meaningful). In single-instance dev, presence isn't authoritative. */
 export function presenceConfigured(): boolean {
-  return !!(env.upstash.url && env.upstash.token);
+  return !!(env.redisUrl || (env.upstash.url && env.upstash.token));
 }
 
 /** The instance currently holding a device, or null. Never throws — presence is

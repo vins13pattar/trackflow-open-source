@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { __resetSessionStore, __test, getSessionStore } from './session-store.js';
 
-const { InMemorySessionStore, UpstashRedisStore } = __test;
+const { InMemorySessionStore, StandardRedisStore, UpstashRedisStore } = __test;
 
 describe('InMemorySessionStore', () => {
   it('binds and looks up IMEI', async () => {
@@ -78,6 +78,28 @@ describe('UpstashRedisStore', () => {
       new Response('rate limited', { status: 429 })) as typeof fetch;
     const s = new UpstashRedisStore('https://example.upstash.io', 'TOKEN', 600, fakeFetch);
     await expect(s.bindImei('k', '1')).rejects.toThrow(/Upstash set failed: 429/);
+  });
+});
+
+describe('StandardRedisStore', () => {
+  it('uses namespaced keys and TTLs through the standard Redis contract', async () => {
+    const values = new Map<string, string>();
+    const client = {
+      get: async (key: string) => values.get(key) ?? null,
+      set: async (key: string, value: string, options: { EX: number }) => {
+        expect(options).toEqual({ EX: 600 });
+        values.set(key, value);
+        return 'OK';
+      },
+      del: async (key: string) => (values.delete(key) ? 1 : 0),
+    };
+    const store = new StandardRedisStore(client, 600);
+    await store.bindImei('gt06:peer', '865432019876543');
+    expect(await store.lookupImei('gt06:peer')).toBe('865432019876543');
+    await store.bindRoute('865432019876543', 'pod-a');
+    expect(await store.lookupRoute('865432019876543')).toBe('pod-a');
+    await store.forget('gt06:peer');
+    expect(await store.lookupImei('gt06:peer')).toBeNull();
   });
 });
 

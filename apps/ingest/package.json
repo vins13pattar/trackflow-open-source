@@ -16,7 +16,8 @@
   "dependencies": {
     "@trackflow/protocols": "workspace:*",
     "@trackflow/shared": "workspace:*",
-    "mqtt": "^5.15.1"
+    "mqtt": "^5.15.1",
+    "redis": "6.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

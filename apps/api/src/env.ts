@@ -35,6 +35,8 @@ export const env = {
     url: process.env.UPSTASH_REDIS_REST_URL,
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
   },
+  /** Provider-neutral Redis protocol URL. Preferred when both adapters exist. */
+  redisUrl: process.env.REDIS_URL,
   // API keys get a separate, higher per-window allowance than interactive users.
   rateLimit: {
     user: Number(process.env.RATE_LIMIT_USER ?? 600),
