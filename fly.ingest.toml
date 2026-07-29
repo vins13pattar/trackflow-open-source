@@ -5,13 +5,14 @@
 # DNS: point gps.trackflow.vinodspattar.in at that IPv4 as a DNS-only (grey-cloud)
 # A record — custom raw TCP through Cloudflare Spectrum requires Enterprise.
 app = "trackflow-ingest"
-primary_region = "sin" # Singapore — common region with Neon and Upstash
+primary_region = "bom" # Mumbai reference overlay for the India-first data plane
 
 [build]
   dockerfile = "apps/ingest/Dockerfile"
 
 [env]
   NODE_ENV = "production"
+  INGEST_SECURITY_MODE = "mtls"
   INGEST_GT06_PORT = "5023"
   INGEST_H02_PORT = "5013"
   INGEST_TELTONIKA_PORT = "5027"
@@ -19,8 +20,8 @@ primary_region = "sin" # Singapore — common region with Neon and Upstash
   INGEST_QUECLINK_PORT = "5073"
   INGEST_MEITRACK_PORT = "5020"
   INGEST_HTTP_PORT = "9100" # health + Prometheus /metrics (scraped over Fly 6PN)
-  # INGEST_SINK_URL + INGEST_SINK_TOKEN (and METRICS_TOKEN, UPSTASH_*, SENTRY_DSN)
-  # are set as secrets:  fly secrets set ... -a trackflow-ingest
+  # INGEST_SINK_URL + INGEST_SINK_TOKEN, REDIS_URL, METRICS_TOKEN, SENTRY_DSN,
+  # and INGEST_TLS_{CERT,KEY,CA}_PEM are set as secrets.
 
 # Keep one machine running — devices maintain persistent connections.
 [[vm]]

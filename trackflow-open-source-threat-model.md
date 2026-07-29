@@ -34,7 +34,7 @@ In scope:
   SSE, GraphQL, billing, privacy, notifications, and tenant webhooks;
 - `apps/jobs`, reports, retention, retries, health checks, and object storage;
 - the Next.js web app and Expo mobile app;
-- PostgreSQL/Neon, Redis/Upstash, report/export object storage, and external
+- PostgreSQL, Redis, report/export object storage, and external
   email, SMS, WhatsApp, push, payment, SSO, and webhook providers;
 - CI/CD, deployment configuration, operator secrets, backups, and monitoring.
 
@@ -42,8 +42,8 @@ Assumptions:
 
 - only synthetic tenants and positions are used until the production gates are
   complete;
-- the first production data plane uses Fly, Neon, Upstash, and Vercel in a
-  common Singapore region where applicable;
+- the first real-data production plane uses provider-neutral PostgreSQL,
+  Redis, object storage, logs, backups, API, ingest, and jobs in India;
 - tracker ports may be reachable from the internet, but the target design puts
   a narrow gateway in front of core services;
 - legacy protocols may provide only IMEI and checksums, not cryptographic

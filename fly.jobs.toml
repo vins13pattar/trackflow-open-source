@@ -5,7 +5,7 @@
 # No public service: /health + /metrics on 9101 are scraped over Fly 6PN.
 # (Alternative: drop this machine and run each job as a Fly Machines cron.)
 app = "trackflow-jobs"
-primary_region = "sin" # Singapore — common region with API and Neon
+primary_region = "bom" # Mumbai reference overlay for the India-first data plane
 
 [build]
   dockerfile = "apps/jobs/Dockerfile"

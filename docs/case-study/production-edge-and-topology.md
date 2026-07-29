@@ -6,28 +6,36 @@ production gates in this document are met.
 
 ## Recommendation
 
-Use a **Singapore data plane** for the first production release:
+Use an **India-first, provider-neutral data plane** for the first production
+release:
 
-- two always-on Fly.io ingest Machines in `sin`;
-- two Fly.io API Machines in `sin`, with at least one kept warm;
-- one singleton jobs process in `sin`, or scheduled Machines with a distributed
+- two always-on ingest containers in an India region (the Fly reference uses
+  Mumbai, `bom`);
+- two API containers in the same India region, with at least one kept warm;
+- one singleton jobs process in the same region, or scheduled containers with a distributed
   lease so a job cannot execute twice concurrently;
-- Neon Postgres in AWS Singapore (`ap-southeast-1`) as the durable system of
-  record;
-- Upstash Redis in AWS Singapore for ephemeral rate limits, presence, session
-  routing, and multi-replica fan-out;
+- managed PostgreSQL 16 in India as the durable system of record;
+- standard Redis 7 in India for ephemeral rate limits, presence, session
+  routing, and multi-replica fan-out (`REDIS_URL`);
+- S3-compatible private object storage, logs, backups, error traces, and
+  analytics in India whenever they may contain tenant or precise-location data;
 - Vercel for the Next.js web application, moving from Hobby to Pro before any
-  commercial tenant uses it;
+  commercial tenant uses it. Static assets may be globally cached, but
+  authenticated API responses and location-bearing logs must not be cached at
+  the edge;
 - Cloudflare DNS for the web/API names and a DNS-only record to the Fly TCP
   edge.
 
-Singapore is the cost-conscious common region currently documented by Fly,
-Neon, and Upstash. Fly and Upstash also offer Mumbai, but Neon does not
-currently document an India region. Splitting ingest/API from the database
-adds latency, egress, and more failure modes. If an actual customer contract
-requires India-only storage, choose a managed Postgres service with an India
-region before onboarding that customer instead of claiming that Neon
-Singapore satisfies residency.
+Singapore hosting is not automatically prohibited by the Digital Personal
+Data Protection Act, 2023: section 16 uses a restriction-by-notification model,
+and rule 15 of the Digital Personal Data Protection Rules, 2025 makes
+cross-border transfers subject to requirements the Central Government may
+specify. Other Indian laws, state platform requirements, contracts, and future
+notifications can be stricter. Because continuous vehicle locations create
+high-impact privacy and operational risk, TrackFlow chooses India-first
+residency for real fleets; Singapore remains suitable only for synthetic
+development until a documented legal/contract review approves otherwise.
+See [DATA_RESIDENCY_AND_PORTABILITY.md](../DATA_RESIDENCY_AND_PORTABILITY.md).
 
 Do not use Kubernetes at this stage. It adds operational cost without solving
 the legacy tracker identity problem. Do not buy Cloudflare Spectrum for the
@@ -53,11 +61,12 @@ Use this order of preference:
    customer VPN/gateway with a unique gateway credential. Bind that gateway to
    an explicit tenant, protocol, and list of allowed IMEIs. A fixed carrier
    egress CIDR can be allow-listed as an additional control.
-4. **Temporary internet-facing legacy exception:** expose only the narrow
-   gateway listener, not the API or database. Reject unprovisioned IMEIs before
-   forwarding, enforce connection/frame/rate budgets, record the source
-   network, detect replay and implausible movement, and mark the fleet as
-   `legacy_unverified`. Put an expiry and named risk owner on every exception.
+
+Raw internet-facing IMEI-only access is a development profile and is refused
+when `NODE_ENV=production`. Production supports `INGEST_SECURITY_MODE=mtls` or
+`private_gateway`. Both call the API admission service before protocol ACK,
+state persistence, or forwarding; unknown, inactive, protocol-mismatched, and
+certificate-mismatched devices are rejected and admission fails closed.
 
 TLS without client authentication protects confidentiality and server
 authenticity, but it does not stop a client from presenting someone else's
@@ -84,16 +93,15 @@ scope the API endpoint to the ingest network.
 | Phase | Data | Ingest | API/jobs | Data services | Estimated posture |
 |---|---|---|---|---|---|
 | Development | Synthetic only | Local process during a test, then stopped | Local/Docker | Local Postgres/Redis | No public tracker ports |
-| Hosted staging | Synthetic only | 1 small Fly Machine | API scales to zero; jobs on demand | Neon Free; Upstash Free/PAYG; Vercel Hobby | Cheapest integration environment; no HA claim |
-| First real tenants | Real | 2 always-on Fly Machines | 2 API Machines; singleton jobs | Neon Launch with 7-day restore window; Upstash fixed/PAYG; Vercel Pro | Cost-effective single-region redundancy |
-| Contracted HA | Real | 2+ tested Machines and failover | 2+ warm API replicas | Neon plan/SLA selected from measured load; Upstash Prod Pack only if its loss is no longer tolerable | Higher cost, explicit SLO and recovery contract |
+| Hosted staging | Synthetic only | 1 small container | API scales to zero; jobs on demand | Free/PAYG Postgres and Redis; Vercel Hobby | Cheapest integration environment; no HA claim |
+| First real tenants | Real | 2 always-on India-region containers | 2 API containers; singleton jobs | India-region managed Postgres/Redis/object storage; Vercel Pro | Cost-effective single-region redundancy |
+| Contracted HA | Real | 2+ tested instances and failover | 2+ warm API replicas | Provider plan/SLA selected from measured load | Higher cost, explicit SLO and recovery contract |
 
-The generated workload model estimates about **$92.67/month at 1,000 devices**
-for the lean profile and **$292.67/month** when the public $200/month Upstash
-Prod Pack is added. Redis is not the system of record in TrackFlow, so the
-Prod Pack is poor value for the first tenants if presence and live fan-out can
-temporarily rebuild from PostgreSQL. Revisit it when a contracted uptime target
-or measured Redis outage impact justifies the extra $200/month.
+The generated workload model is a planning baseline, not a provider quote.
+Redis is not the system of record, so start with a small managed standard-Redis
+plan and buy HA only when a contracted uptime target or measured outage impact
+justifies it. Avoiding a Kubernetes control plane and premium raw-TCP proxy is
+the largest early cost saving.
 
 Vercel Hobby is restricted to personal, non-commercial use. Synthetic
 development can use it, but production tenants require Vercel Pro or hosting
@@ -103,9 +111,8 @@ Vercel Pro initially unless the extra $20/month is material.
 
 ## Required production gates
 
-- Device inventory records the security profile (`mtls`, `device_secret`,
-  `private_gateway`, or time-bounded `legacy_unverified`) and credential
-  lifecycle.
+- Device inventory records the implemented security profile (`mtls` or
+  `private_gateway`) and certificate/gateway lifecycle.
 - Unknown IMEIs are rejected at the edge rather than accepted and skipped only
   after reaching the API.
 - Per-source connection admission, per-IMEI quotas, replay controls, and
@@ -132,10 +139,6 @@ Vercel Pro initially unless the extra $20/month is material.
 - [Fly.io resource pricing](https://fly.io/docs/about/pricing/)
 - [Fly.io TCP/TLS handlers](https://fly.io/docs/networking/services/)
 - [Fly.io connection concurrency controls](https://fly.io/docs/reference/configuration/#services-concurrency)
-- [Neon pricing and restore windows](https://neon.com/pricing)
-- [Neon regional status endpoints](https://neon.com/docs/introduction/status)
-- [Upstash regions and replication](https://upstash.com/docs/common/concepts/global-replication)
-- [Upstash Redis pricing and Prod Pack](https://upstash.com/pricing/redis)
 - [Vercel plans and pricing](https://vercel.com/pricing)
 - [Cloudflare Spectrum protocol availability](https://developers.cloudflare.com/spectrum/protocols-per-plan/)
 - [Cloudflare Spectrum payload behavior](https://developers.cloudflare.com/spectrum/reference/configuration-options/)

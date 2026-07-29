@@ -1,7 +1,6 @@
 # Public Security workflow status
 
-Status checked read-only on 2026-07-28. No branch was pushed and no pull request
-was created.
+Status checked on 2026-07-28 before this pull request was published.
 
 The latest scheduled `Security` workflow on public `main` is
 [run 30243699074](https://github.com/vins13pattar/trackflow-open-source/actions/runs/30243699074)
@@ -22,7 +21,7 @@ The local `codex/trackflow-case-study` branch addresses both failures:
   and the full-history scan passes locally;
 - Semgrep also passes locally with the workflow rulesets.
 
-The red public result cannot change from an unpublished local branch. The next
-action is intentionally gated: push `codex/trackflow-case-study`, open a pull
-request, and observe the pull-request `Security` run. Do not rerun the scheduled
-workflow on `main`; it would test the same unfixed public commit again.
+This pull request publishes the lockfile remediation and narrowly scoped
+Gitleaks fingerprint. Its `Security` run is the approval evidence; after merge,
+the push-triggered run on the new `main` commit replaces the stale red result.
+Rerunning the old scheduled commit would only retest the unfixed tree.

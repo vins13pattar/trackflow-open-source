@@ -17,6 +17,7 @@ flowchart LR
 
   subgraph Ingest["apps/ingest — always-on Node"]
     TCP["TCP listeners<br/>:5023 :5013 :5027<br/>:5004 :5073 :5020"]
+    ADMIT["transport identity + device admission<br/>mTLS or private gateway"]
     DEC["packages/protocols<br/>decoders + encoders"]
     SESS["session store<br/>cross-pod IMEI map"]
     PRES["presence registry<br/>imei → instance"]
@@ -34,8 +35,8 @@ flowchart LR
   end
 
   subgraph Data["Data & state"]
-    PG[("Postgres 16 / Neon<br/>Drizzle · RLS tenant isolation<br/>time-partitioned positions")]
-    REDIS[("Redis / Upstash REST<br/>sessions · presence · rate limits")]
+    PG[("Postgres 16<br/>DATABASE_URL · Drizzle · RLS<br/>time-partitioned positions")]
+    REDIS[("Redis 7<br/>REDIS_URL<br/>sessions · presence · rate limits")]
     R2[("S3 / Cloudflare R2<br/>reports · exports")]
   end
 
@@ -52,7 +53,8 @@ flowchart LR
   GPS -- "raw TCP frames" --> TCP
   MQTTDEV --> Ingest
   TCP --> DEC
-  DEC -- "decoded fixes (HTTP + token)" --> SINK
+  DEC --> ADMIT
+  ADMIT -- "admitted fixes (HTTP + token)" --> SINK
   Ingest <--> REDIS
   PHONE -- "HTTPS /devices/:id/report<br/>(offline queue + sync)" --> ROUTES
   SINK --> PSVC
@@ -88,9 +90,11 @@ sequenceDiagram
   participant W as Dashboard (web)
 
   D->>I: TCP frame (e.g. GT06 login + location)
-  I->>I: decode via packages/protocols<br/>(decoder crash ⇒ contained, socket kept)
-  I-->>D: protocol ACK / reply
-  I->>I: bind IMEI in session store + presence registry
+  I->>I: decode via packages/protocols<br/>(decoder crash ⇒ contained)
+  I->>A: admit IMEI + protocol + transport identity
+  A-->>I: allow only active, matching provisioned device
+  I-->>D: protocol ACK / reply after admission
+  I->>I: bind admitted IMEI in session store + presence registry
   I->>A: POST /internal/positions (x-ingest-token)
   A->>P: recordPosition(): resolve device→tenant,<br/>insert into partitioned positions,<br/>update device last_seen/telemetry
   A->>A: evaluateGeofences() → entry/exit alerts
@@ -130,9 +134,9 @@ flowchart LR
   CF --> VERCEL["Vercel: apps/web"]
   CF --> FLYA["Fly.io: apps/api<br/>(Workers-portable)"]
   FLYI -- "HTTP + token" --> FLYA
-  FLYA --> NEON[("Neon Postgres<br/>Singapore data plane<br/>scales to zero")]
-  FLYA --> UP[("Upstash Redis")]
-  CRON["apps/jobs scheduler"] --> NEON
+  FLYA --> PGPROD[("Managed Postgres 16<br/>India region")]
+  FLYA --> REDISPROD[("Managed Redis 7<br/>India region")]
+  CRON["apps/jobs scheduler"] --> PGPROD
   CRON --> R2b[("Cloudflare R2")]
   PROM["Prometheus + Grafana<br/>(ops/: SLO dashboard,<br/>burn-rate alert rules)"] -. "scrape /metrics<br/>api · ingest · jobs" .-> FLYA
   PROM -.-> FLYI
