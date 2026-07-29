@@ -1,0 +1,35 @@
+# Synthetic-only India staging API.
+#
+# This app intentionally has no public tracker ports and no ingest companion.
+# Use a database created specifically for staging; never attach the legacy
+# Singapore database. Deploy from the repository root:
+#
+#   fly deploy --config fly.staging.api.toml
+
+app = "trackflow-staging-api-in"
+primary_region = "bom"
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  API_PORT = "8787"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "15s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

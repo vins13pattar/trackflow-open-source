@@ -137,11 +137,17 @@ bootstrap DDL.
 
 ## Verification status
 
-- Production dependency audit: passed locally, zero vulnerabilities.
-- Redacted Gitleaks scan: passed locally.
-- DB-enabled repository suite: passed, 307 tests across the pnpm workspace.
-- Public GitHub Security workflow: pending an approved push/PR; no local result
-  can substitute for that remote workflow.
-- Semgrep: local scan passed 92 rules across 637 files with zero findings.
-- SBOM: workflow definition remains in place; final CI artifact confirmation is
-  pending.
+- Production pnpm and standalone mobile npm audits: passed with zero known
+  vulnerabilities at merge time.
+- The redacted full-history Gitleaks scan and Semgrep scan passed.
+- PR #7 merged the lockfile and narrowly scoped RFC 6238 test-vector
+  remediation; PR #9 merged the standalone mobile advisory remediation.
+- Merged-main GitHub Security run `30430688995` passed dependency audit,
+  Gitleaks, Semgrep, and CycloneDX SBOM generation.
+- Merged-main CI run `30430689023` passed typecheck, migrations/RLS, tests,
+  build, Prometheus validation, mobile tests, and the bounded load gate.
+- GitHub Dependabot reported zero open alerts after both merges.
+
+This report records repository evidence, not hosted-production accreditation.
+The remaining real-data gates are tracked in
+[`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).

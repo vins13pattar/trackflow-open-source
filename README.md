@@ -14,7 +14,13 @@ only and does not include production credentials, customer data, or private depl
 > **Docs:** [Getting Started](docs/GETTING_STARTED.md) (create a workspace, add devices, geofences,
 > alerts, reports, API) · [Architecture](docs/ARCHITECTURE.md) (system, data-flow, tenancy and
 > deployment diagrams) · [Deployment](DEPLOY.md) (go live on the low-cost stack) ·
-> [Hosting on a domain](docs/HOSTING.md) (concrete Cloudflare + Fly + Vercel + Neon plan).
+> [Hosting on a domain](docs/HOSTING.md) (concrete Cloudflare + Fly + Vercel + managed
+> PostgreSQL plan) · [Production readiness](docs/PRODUCTION_READINESS.md) (current evidence,
+> synthetic-only boundary, and tracked P0/P1/P2 gates).
+
+> **Current operating boundary:** the repository and public CI are suitable for
+> synthetic development and staging. Do not onboard real tenants, vehicles, or
+> locations until every P0 real-data-readiness issue is complete.
 
 ## Architecture at a glance
 

@@ -296,9 +296,11 @@ read replicas, and archival tiering.
 
 ## Remaining risks and limitations
 
-- The public Security workflow remains red on the old `main` commit; the two
-  local remediations require an approved push/PR to produce public evidence.
-- API, PostgreSQL, SSE, and domain p50/p95/p99 capacity results are absent.
+- The dependency and test-vector remediations were merged in PR #7, the
+  standalone mobile advisory was resolved in PR #9, and merged-main Security
+  run `30430688995` is green. This closes the public workflow evidence gap.
+- The bounded API load gate is useful regression evidence, but authenticated
+  API, PostgreSQL, SSE, and domain p50/p95/p99 capacity results are absent.
 - Multiple API/ingest replicas and three infrastructure failure recoveries have
   not been exercised.
 - The RLS suite does not yet cover every important public/background path.
@@ -307,3 +309,6 @@ read replicas, and archival tiering.
 - The local restore is not provider PITR or regional recovery.
 - A recorded demo remains pending; the browser-verified screenshots and
   deterministic [demo script](demo-script.md) are ready.
+
+The current P0/P1/P2 work is tracked in
+[Production readiness](../PRODUCTION_READINESS.md).
