@@ -11,6 +11,11 @@ const server = http.createServer((request, response) => {
     requests += 1;
     setTimeout(() => {
       const fail = Math.random() < failureRate;
+      if (request.method === 'POST' && request.url === '/internal/devices/admission' && !fail) {
+        response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        response.end(JSON.stringify({ allowed: true, reason: 'allowed' }));
+        return;
+      }
       response.writeHead(fail ? 503 : 204);
       response.end();
     }, latencyMs);
