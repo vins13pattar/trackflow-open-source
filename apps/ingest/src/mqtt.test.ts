@@ -13,6 +13,7 @@ describe('MQTT ingest handler', () => {
       forward: async (m) => {
         calls.push(m);
       },
+      admit: async () => ({ allowed: true, reason: 'allowed' }),
       log: () => {},
     });
     return { handler, calls };
@@ -46,7 +47,11 @@ describe('MQTT ingest handler', () => {
 
   it('ignores unknown protocols silently (returns 0 forwards)', async () => {
     const log = vi.fn();
-    const handler = createMqttHandler({ forward: async () => {}, log });
+    const handler = createMqttHandler({
+      forward: async () => {},
+      admit: async () => ({ allowed: true, reason: 'allowed' }),
+      log,
+    });
     const n = await handler.onMessage(`trackflow/nonsense/${IMEI}/up`, Buffer.from([0]));
     expect(n).toBe(0);
     expect(log).toHaveBeenCalled();
@@ -77,6 +82,14 @@ describe('MQTT ingest handler', () => {
     // Send a heartbeat-like Queclink frame: GTHBD has no position.
     const ackFrame = Buffer.from(`+ACK:GTHBD,210901,${IMEI},GV300W,20260501120000,0001$`, 'ascii');
     const n = await handler.onMessage(TOPIC, ackFrame);
+    expect(n).toBe(0);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('rejects a frame whose embedded IMEI differs from the admitted topic', async () => {
+    const { handler, calls } = makeHandler();
+    const frame = encodeQueclinkLocation({ imei: IMEI, latitude: 1, longitude: 2 });
+    const n = await handler.onMessage('trackflow/queclink/999999999999999/up', frame);
     expect(n).toBe(0);
     expect(calls).toHaveLength(0);
   });

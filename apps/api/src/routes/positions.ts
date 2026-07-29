@@ -1,6 +1,7 @@
+import { timingSafeEqual } from 'node:crypto';
 import { and, deviceCommands, devices, eq, isNotNull, lt, withSystem } from '@trackflow/db';
-import { ackDeviceCommandSchema, errors, ingestPositionSchema, verifyToken } from '@trackflow/shared';
-import { Hono } from 'hono';
+import { ackDeviceCommandSchema, errors, ingestAdmissionSchema, ingestPositionSchema, verifyToken } from '@trackflow/shared';
+import { Hono, type MiddlewareHandler } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { dispatchAlerts } from '../alert-dispatch.js';
 import { subscribeAlerts, subscribePositions } from '../bus.js';
@@ -11,8 +12,64 @@ import { recordPosition, updateDeviceTelemetry } from '../positions-service.js';
 /** Trusted ingest endpoint the TCP service posts to (shared-secret gated). */
 export const internalRoutes = new Hono();
 
+function safeEqual(a: string, b: string): boolean {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+const requireIngestToken: MiddlewareHandler = async (c, next) => {
+  if (!safeEqual(c.req.header('x-ingest-token') ?? '', env.ingestToken)) throw errors.unauthorized();
+  await next();
+};
+
+internalRoutes.use('/positions', requireIngestToken);
+internalRoutes.use('/devices/*', requireIngestToken);
+
+export interface DeviceAdmissionRecord {
+  imei: string;
+  protocol: string;
+  status: string;
+}
+
+export type DeviceAdmissionDecision =
+  | { allowed: true; reason: 'allowed' }
+  | {
+      allowed: false;
+      reason: 'unknown_imei' | 'inactive' | 'protocol_mismatch' | 'identity_mismatch' | 'development_forbidden';
+    };
+
+export function evaluateDeviceAdmission(
+  device: DeviceAdmissionRecord | null,
+  request: ReturnType<typeof ingestAdmissionSchema.parse>,
+  production = env.isProduction,
+): DeviceAdmissionDecision {
+  if (!device) return { allowed: false, reason: 'unknown_imei' };
+  if (device.status !== 'active') return { allowed: false, reason: 'inactive' };
+  if (device.protocol !== request.protocol) return { allowed: false, reason: 'protocol_mismatch' };
+  if (production && request.transportSecurity === 'development') {
+    return { allowed: false, reason: 'development_forbidden' };
+  }
+  if (request.transportSecurity === 'mtls' && request.authenticatedImei !== device.imei) {
+    return { allowed: false, reason: 'identity_mismatch' };
+  }
+  return { allowed: true, reason: 'allowed' };
+}
+
+internalRoutes.post('/devices/admission', async (c) => {
+  const request = ingestAdmissionSchema.parse(await c.req.json());
+  const device = await withSystem(db, async (tx) => {
+    const [row] = await tx
+      .select({ imei: devices.imei, protocol: devices.protocol, status: devices.status })
+      .from(devices)
+      .where(eq(devices.imei, request.imei));
+    return row ?? null;
+  });
+  c.header('cache-control', 'no-store');
+  return c.json(evaluateDeviceAdmission(device, request));
+});
+
 internalRoutes.post('/positions', async (c) => {
-  if (c.req.header('x-ingest-token') !== env.ingestToken) throw errors.unauthorized();
   const body = ingestPositionSchema.parse(await c.req.json());
   const hasPosition = body.latitude != null && body.longitude != null;
 
@@ -89,7 +146,6 @@ realtimeRoutes.get('/positions', async (c) => {
  *  ingest session calls this when the device connects, then sends each command
  *  back over the protocol-specific wire. */
 internalRoutes.post('/devices/:id/commands/pending', async (c) => {
-  if (c.req.header('x-ingest-token') !== env.ingestToken) throw errors.unauthorized();
   const deviceId = c.req.param('id');
   const now = new Date();
   const rows = await withSystem(db, async (tx) => {
@@ -111,7 +167,6 @@ internalRoutes.post('/devices/:id/commands/pending', async (c) => {
 
 /** Device/ingest reports the result of a sent command. */
 internalRoutes.post('/devices/commands/:cmdId/ack', async (c) => {
-  if (c.req.header('x-ingest-token') !== env.ingestToken) throw errors.unauthorized();
   const cmdId = c.req.param('cmdId');
   const body = ackDeviceCommandSchema.parse(await c.req.json());
   const updated = await withSystem(db, async (tx) => {

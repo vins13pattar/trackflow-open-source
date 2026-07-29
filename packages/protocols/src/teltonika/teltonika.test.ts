@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { crc16IBM } from '../base/crc.js';
 import { SessionContext } from '../base/registry.js';
-import { TeltonikaDecoder } from './index.js';
+import { MAX_TELTONIKA_DATA_LENGTH, TeltonikaDecoder } from './index.js';
 import { encodeTeltonikaAvl, encodeTeltonikaCommand, encodeTeltonikaImei, parseTeltonikaCommandResponse } from './encode.js';
 
 describe('Teltonika CRC-16/IBM', () => {
@@ -12,6 +12,28 @@ describe('Teltonika CRC-16/IBM', () => {
 
 describe('Teltonika Codec 8', () => {
   const IMEI = '356307042441013';
+
+  it('rejects oversized and truncated attacker-controlled frames without throwing', () => {
+    const decoder = new TeltonikaDecoder();
+    const ctx = new SessionContext();
+    ctx.setImei(IMEI);
+
+    const oversized = Buffer.alloc(12);
+    oversized.writeUInt32BE(0, 0);
+    oversized.writeUInt32BE(MAX_TELTONIKA_DATA_LENGTH + 1, 4);
+    expect(() => decoder.decode(oversized, ctx)).not.toThrow();
+
+    // A valid outer CRC is not sufficient when a record advertises fields
+    // beyond the body. Drop the malformed frame without a parser exception.
+    const body = Buffer.from([0x08, 0x01, 0x00, 0x01]);
+    const malformed = Buffer.alloc(8 + body.length + 4);
+    malformed.writeUInt32BE(0, 0);
+    malformed.writeUInt32BE(body.length, 4);
+    body.copy(malformed, 8);
+    malformed.writeUInt32BE(crc16IBM(body), 8 + body.length);
+    expect(() => decoder.decode(malformed, ctx)).not.toThrow();
+    expect(decoder.decode(malformed, ctx).messages).toHaveLength(0);
+  });
 
   it('accepts the IMEI handshake with 0x01', () => {
     const ctx = new SessionContext();

@@ -42,6 +42,12 @@ export class NmeaDecoder implements Decoder {
       if (nl === -1) break;
       const line = buffer.subarray(offset, nl).toString('ascii').trim();
       offset = nl + 1;
+      const identity = /^#IMEI,(\d{6,17})$/.exec(line);
+      if (identity) {
+        ctx.setImei(identity[1]!);
+        messages.push({ protocol: this.protocol, kind: 'login', imei: identity[1]!, raw: Buffer.from(line, 'ascii') });
+        continue;
+      }
       const msg = this.parseLine(line, ctx);
       if (msg) messages.push(msg);
     }

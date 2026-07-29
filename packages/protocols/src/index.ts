@@ -18,7 +18,7 @@ export {
   parseTeltonikaCommandResponse,
 } from './teltonika/encode.js';
 export type { TeltonikaRecordInput, TeltonikaCommandResponse } from './teltonika/encode.js';
-export { encodeNmeaRmc } from './nmea/encode.js';
+export { encodeNmeaIdentity, encodeNmeaRmc } from './nmea/encode.js';
 export type { NmeaInput } from './nmea/encode.js';
 export {
   encodeQueclinkLocation,

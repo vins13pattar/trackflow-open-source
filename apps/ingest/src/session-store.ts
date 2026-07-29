@@ -31,6 +31,12 @@ export interface SessionStore {
   forget(connectionKey: string): Promise<void>;
 }
 
+export interface RedisSessionClient {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, options: { EX: number }): Promise<unknown>;
+  del(key: string): Promise<number>;
+}
+
 const DEFAULT_TTL_SECONDS = 6 * 60 * 60;
 
 class InMemorySessionStore implements SessionStore {
@@ -125,6 +131,36 @@ class UpstashRedisStore implements SessionStore {
   }
 }
 
+class StandardRedisStore implements SessionStore {
+  constructor(
+    private readonly client: RedisSessionClient,
+    private readonly ttlSeconds: number = DEFAULT_TTL_SECONDS,
+  ) {}
+
+  private connKey(connectionKey: string): string {
+    return `tf:ingest:conn:${connectionKey}`;
+  }
+  private routeKey(imei: string): string {
+    return `tf:ingest:route:${imei}`;
+  }
+
+  async bindImei(connectionKey: string, imei: string): Promise<void> {
+    await this.client.set(this.connKey(connectionKey), imei, { EX: this.ttlSeconds });
+  }
+  async lookupImei(connectionKey: string): Promise<string | null> {
+    return this.client.get(this.connKey(connectionKey));
+  }
+  async bindRoute(imei: string, podId: string): Promise<void> {
+    await this.client.set(this.routeKey(imei), podId, { EX: this.ttlSeconds });
+  }
+  async lookupRoute(imei: string): Promise<string | null> {
+    return this.client.get(this.routeKey(imei));
+  }
+  async forget(connectionKey: string): Promise<void> {
+    await this.client.del(this.connKey(connectionKey));
+  }
+}
+
 let cached: SessionStore | null = null;
 
 /**
@@ -133,15 +169,28 @@ let cached: SessionStore | null = null;
  */
 export function getSessionStore(): SessionStore {
   if (cached) return cached;
+  const standardUrl = process.env.REDIS_URL;
   const url = process.env.INGEST_REDIS_URL;
   const token = process.env.INGEST_REDIS_TOKEN;
   const ttl = process.env.INGEST_SESSION_TTL_SEC ? Number(process.env.INGEST_SESSION_TTL_SEC) : DEFAULT_TTL_SECONDS;
-  cached = url && token ? new UpstashRedisStore(url, token, ttl) : new InMemorySessionStore(ttl);
+  if (standardUrl) {
+    cached = new StandardRedisStore(
+      {
+        get: async (key) => (await import('./redis.js')).redisClient(standardUrl).then((client) => client.get(key)),
+        set: async (key, value, options) =>
+          (await import('./redis.js')).redisClient(standardUrl).then((client) => client.set(key, value, options)),
+        del: async (key) => (await import('./redis.js')).redisClient(standardUrl).then((client) => client.del(key)),
+      },
+      ttl,
+    );
+  } else {
+    cached = url && token ? new UpstashRedisStore(url, token, ttl) : new InMemorySessionStore(ttl);
+  }
   return cached;
 }
 
 /** Internal helpers exposed for tests. */
-export const __test = { InMemorySessionStore, UpstashRedisStore };
+export const __test = { InMemorySessionStore, StandardRedisStore, UpstashRedisStore };
 
 /** Reset the cached singleton — only for tests. */
 export function __resetSessionStore(): void {

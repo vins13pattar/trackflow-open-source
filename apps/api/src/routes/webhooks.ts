@@ -6,19 +6,20 @@ import { db } from '../db.js';
 import type { AppEnv } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/authorize.js';
 import { deliverOne } from '../webhook-service.js';
+import { validateWebhookTarget } from '../webhook-target.js';
 
 export const webhookRoutes = new Hono<AppEnv>();
 
 webhookRoutes.use('*', requirePermission('webhooks:manage'));
 
-function toSummary(w: Webhook) {
+function toSummary(w: Webhook, includeSecret = false) {
   return {
     id: w.id,
     name: w.name,
     url: w.url,
     events: w.events,
     deviceIds: w.deviceIds,
-    secret: w.secret, // the signing secret the receiver verifies with
+    ...(includeSecret ? { secret: w.secret } : {}),
     status: w.status,
     successCount: w.successCount,
     failureCount: w.failureCount,
@@ -52,12 +53,17 @@ webhookRoutes.get('/', async (c) => {
   const rows = await withTenant(db, tenantId, (tx) =>
     tx.select().from(webhooks).orderBy(desc(webhooks.createdAt)),
   );
-  return c.json({ webhooks: rows.map(toSummary), total: rows.length });
+  return c.json({ webhooks: rows.map((row) => toSummary(row)), total: rows.length });
 });
 
 webhookRoutes.post('/', async (c) => {
   const { tenantId } = c.get('principal');
   const body = createWebhookSchema.parse(await c.req.json());
+  try {
+    await validateWebhookTarget(body.url);
+  } catch (error) {
+    throw errors.validation((error as Error).message);
+  }
   const row = await withTenant(db, tenantId, async (tx) => {
     const [w] = await tx
       .insert(webhooks)
@@ -73,7 +79,8 @@ webhookRoutes.post('/', async (c) => {
     return w!;
   });
   await recordAudit({ tenantId, actorUserId: actorUserId(c), actorIp: actorIp(c), action: 'webhook.created', target: 'webhook', targetId: row.id, metadata: { url: row.url, events: row.events } });
-  return c.json(toSummary(row), 201);
+  // Reveal the signing secret exactly once, matching the API-key lifecycle.
+  return c.json(toSummary(row, true), 201);
 });
 
 // Edit any subset of url/events/deviceIds/name/status (e.g., pause a noisy hook,
@@ -82,6 +89,13 @@ webhookRoutes.patch('/:id', async (c) => {
   const { tenantId } = c.get('principal');
   const body = updateWebhookSchema.parse(await c.req.json());
   if (Object.keys(body).length === 0) throw errors.validation('No fields to update');
+  if (body.url) {
+    try {
+      await validateWebhookTarget(body.url);
+    } catch (error) {
+      throw errors.validation((error as Error).message);
+    }
+  }
   const row = await withTenant(db, tenantId, async (tx) => {
     const [w] = await tx
       .update(webhooks)

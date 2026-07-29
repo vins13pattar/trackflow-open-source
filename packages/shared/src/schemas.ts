@@ -84,6 +84,13 @@ export const ingestPositionSchema = z.object({
   alarmType: z.string().optional(),
 });
 
+export const ingestAdmissionSchema = z.object({
+  imei: z.string().regex(/^\d{6,17}$/),
+  protocol: z.enum(protocols),
+  transportSecurity: z.enum(['development', 'mtls', 'private_gateway']),
+  authenticatedImei: z.string().regex(/^\d{6,17}$/).optional(),
+});
+
 export const roles = ['owner', 'admin', 'manager', 'user', 'viewer'] as const;
 
 export const createApiKeySchema = z.object({

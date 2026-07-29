@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { resetIngestHealth, updateIngestHealth } from './health.js';
 import { handleHttp, metrics, renderMetrics, resetMetrics } from './metrics.js';
 
 describe('ingest metrics registry', () => {
-  beforeEach(() => resetMetrics());
+  beforeEach(() => {
+    resetMetrics();
+    resetIngestHealth();
+  });
 
   it('counts messages/forwards/errors and tracks active connections', () => {
     metrics.connectionOpened('gt06');
@@ -13,6 +17,11 @@ describe('ingest metrics registry', () => {
     metrics.forwarded('gt06');
     metrics.decodeError('h02');
     metrics.sinkError();
+    metrics.sinkAccepted();
+    metrics.sinkSucceeded();
+    metrics.sinkRetry('timeout');
+    metrics.sinkDropped('queue_full');
+    metrics.sinkQueueState(7, 3, 100);
     metrics.connectionClosed('gt06');
 
     const out = renderMetrics();
@@ -20,7 +29,12 @@ describe('ingest metrics registry', () => {
     expect(out).toContain('ingest_messages_total{kind="heartbeat",protocol="gt06"} 1');
     expect(out).toContain('ingest_forwarded_total{protocol="gt06"} 1');
     expect(out).toContain('ingest_decode_errors_total{protocol="h02"} 1');
-    expect(out).toContain('ingest_sink_errors_total 1');
+    expect(out).toContain('ingest_sink_errors_total{category="unknown"} 1');
+    expect(out).toContain('ingest_sink_accepted_total 1');
+    expect(out).toContain('ingest_sink_succeeded_total 1');
+    expect(out).toContain('ingest_sink_retries_total{category="timeout"} 1');
+    expect(out).toContain('ingest_sink_dropped_total{reason="queue_full"} 1');
+    expect(out).toContain('ingest_sink_queue_depth 7');
     expect(out).toContain('ingest_active_connections{protocol="gt06"} 1'); // 2 opened - 1 closed
     expect(out).toContain('trackflow_ingest_uptime_seconds');
     expect(out).toMatch(/# TYPE ingest_messages_total counter/);
@@ -30,7 +44,10 @@ describe('ingest metrics registry', () => {
 describe('handleHttp', () => {
   const ORIG = process.env.METRICS_TOKEN;
   const ORIG_ENV = process.env.NODE_ENV;
-  beforeEach(() => resetMetrics());
+  beforeEach(() => {
+    resetMetrics();
+    resetIngestHealth();
+  });
   afterEach(() => {
     if (ORIG === undefined) delete process.env.METRICS_TOKEN;
     else process.env.METRICS_TOKEN = ORIG;
@@ -41,6 +58,14 @@ describe('handleHttp', () => {
     const r = handleHttp('GET', '/health');
     expect(r.status).toBe(200);
     expect(JSON.parse(r.body)).toMatchObject({ status: 'ok', service: 'trackflow-ingest' });
+  });
+
+  it('separates liveness from readiness while overloaded or draining', () => {
+    updateIngestHealth({ accepting: false, queueDepth: 4, queueCapacity: 4, inFlight: 2 });
+    expect(handleHttp('GET', '/live').status).toBe(200);
+    const ready = handleHttp('GET', '/ready');
+    expect(ready.status).toBe(503);
+    expect(JSON.parse(ready.body)).toMatchObject({ status: 'not_ready', accepting: false, queueDepth: 4 });
   });
 
   it('serves /metrics open in dev', () => {

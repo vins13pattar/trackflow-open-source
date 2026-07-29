@@ -1,6 +1,7 @@
 import { and, eq, sql, type Webhook, webhookDeliveries, webhooks, withSystem } from '@trackflow/db';
 import { db } from './db.js';
 import { hmacHex } from './hmac.js';
+import { validateWebhookTarget } from './webhook-target.js';
 
 export interface DeliveryOutcome {
   ok: boolean;
@@ -54,6 +55,14 @@ export async function deliverOne(hook: Webhook, event: string, data: unknown): P
   let lastError = '';
   let lastStatus: number | undefined;
 
+  try {
+    await validateWebhookTarget(hook.url);
+  } catch (error) {
+    lastError = `Unsafe webhook target: ${(error as Error).message}`;
+    await logAttempt(hook, event, 1, { status: 'failed', error: lastError, durationMs: 0 });
+    return { ok: false, error: lastError, attempts: 1 };
+  }
+
   for (let attempt = 1; attempt <= 3; attempt++) {
     if (attempt > 1) await sleep(200 * 2 ** (attempt - 1));
     const startedAt = Date.now();
@@ -69,6 +78,7 @@ export async function deliverOne(hook: Webhook, event: string, data: unknown): P
             'x-trackflow-delivery': deliveryId,
           },
           body,
+          redirect: 'manual',
         },
         10_000,
       );

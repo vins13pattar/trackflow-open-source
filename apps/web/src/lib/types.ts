@@ -265,7 +265,8 @@ export interface WebhookSummary {
   url: string;
   events: string[];
   deviceIds: string[];
-  secret: string;
+  /** Returned only by createWebhook; list/update responses never reveal it. */
+  secret?: string;
   status: string;
   successCount: number;
   failureCount: number;

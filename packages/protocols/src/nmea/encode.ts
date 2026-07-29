@@ -22,6 +22,15 @@ export interface NmeaInput {
   time?: Date;
 }
 
+/**
+ * NMEA sentences do not carry a device identity. TrackFlow accepts this
+ * synthetic/vendor-gateway preamble before NMEA sentences on a TCP session.
+ */
+export function encodeNmeaIdentity(imei: string): Buffer {
+  if (!/^\d{6,17}$/.test(imei)) throw new Error('NMEA identity must be a 6-17 digit IMEI');
+  return Buffer.from(`#IMEI,${imei}\r\n`, 'ascii');
+}
+
 export function encodeNmeaRmc(input: NmeaInput): Buffer {
   const t = input.time ?? new Date();
   const hh = String(t.getUTCHours()).padStart(2, '0');

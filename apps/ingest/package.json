@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "sim": "tsx sim/simulator.ts",
+    "sim:load": "tsx sim/load.ts",
     "seed": "tsx sim/seed-fleet.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -15,7 +16,8 @@
   "dependencies": {
     "@trackflow/protocols": "workspace:*",
     "@trackflow/shared": "workspace:*",
-    "mqtt": "^5.15.1"
+    "mqtt": "^5.15.1",
+    "redis": "6.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

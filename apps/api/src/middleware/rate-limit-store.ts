@@ -1,4 +1,5 @@
 import { env } from '../env.js';
+import { redisClient } from '../redis.js';
 
 export interface RateLimitResult {
   count: number;
@@ -55,8 +56,27 @@ export class UpstashStore implements RateLimitStore {
   }
 }
 
-/** Picks Upstash when configured, else the in-memory store. */
+const RATE_LIMIT_SCRIPT =
+  "local count=redis.call('INCR',KEYS[1]); if count==1 then redis.call('PEXPIRE',KEYS[1],ARGV[1]) end; local ttl=redis.call('PTTL',KEYS[1]); return {count,ttl}";
+
+/** Fixed-window limiter over the standard Redis protocol. */
+export class RedisStore implements RateLimitStore {
+  constructor(private readonly url: string) {}
+
+  async hit(id: string, windowMs: number): Promise<RateLimitResult> {
+    const client = await redisClient(this.url);
+    const result = (await client.eval(RATE_LIMIT_SCRIPT, {
+      keys: [`rl:${id}`],
+      arguments: [String(windowMs)],
+    })) as [number, number];
+    const [count, ttl] = result;
+    return { count, resetAt: Date.now() + (ttl > 0 ? ttl : windowMs) };
+  }
+}
+
+/** Picks standard Redis first, then the legacy REST adapter, then memory. */
 export function createRateLimitStore(): RateLimitStore {
+  if (env.redisUrl) return new RedisStore(env.redisUrl);
   if (env.upstash.url && env.upstash.token) return new UpstashStore(env.upstash.url, env.upstash.token);
   return new MemoryStore();
 }

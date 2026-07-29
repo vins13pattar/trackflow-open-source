@@ -252,7 +252,7 @@ const schemas = {
       url: { type: 'string', format: 'uri' },
       events: { type: 'array', items: { type: 'string' } },
       deviceIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
-      secret: { type: 'string' },
+      secret: { type: 'string', writeOnly: true, description: 'Returned once when a webhook is created.' },
       status: { type: 'string', enum: ['active', 'paused'] },
       successCount: { type: 'integer' },
       failureCount: { type: 'integer' },

@@ -10,11 +10,12 @@ configures its credentials. An unconfigured row simply isn't in the data path.
 
 | Sub-processor | Purpose | Data shared | Region notes |
 |---|---|---|---|
-| **Neon** | Primary Postgres (all application data) | All tenant data, encrypted at rest | Region pinned at provisioning (India deployments: see DEPLOY.md data-residency note) |
+| **Configured PostgreSQL provider** | Primary database | All tenant data, encrypted at rest | India region required for the default real-data profile |
 | **Fly.io** | API + ingest compute | Data in transit through the services | Region pinned (e.g. `bom` for India) |
 | **Vercel** | Dashboard hosting | No tenant data at rest; serves the static app | Global CDN |
-| **Cloudflare** | DNS, TLS, WAF, custom domains (for SaaS), R2 object storage | Hostnames; archived reports + invoice PDFs in R2 | R2 bucket region chosen at provisioning |
-| **Upstash** | Redis (rate-limit counters; session map once M12 lands) | Counter keys (tenant/user/key ids), IMEI→instance mapping | Region chosen at provisioning |
+| **Cloudflare** | DNS, TLS, WAF, and custom domains (for SaaS) | Hostnames and request metadata | Global network |
+| **Configured S3-compatible provider** | Reports, exports, and invoice archives | Generated tenant documents | India region required for the default real-data profile |
+| **Configured Redis provider** | Rate limits, session routing, and presence | Counter keys (tenant/user/key ids), IMEI-to-instance mapping | India region required for the default real-data profile |
 | **Resend** | Transactional email (invites, resets, reports) | Recipient email, message content | — |
 | **MSG91** | SMS alerts (India, DLT-registered) | Recipient phone, message content | India |
 | **Meta (WhatsApp Cloud API)** | WhatsApp alerts | Recipient phone, message content | — |

@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+# RFC 6238 Appendix B publishes this Base32 test vector. It is deliberately
+# committed in the TOTP conformance test and is not an application credential.
+[[allowlists]]
+description = "RFC 6238 published TOTP test vector"
+condition = "AND"
+paths = ['''packages/shared/src/totp\.test\.ts''']
+regexes = ['''GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ''']

@@ -8,6 +8,7 @@
  * kinds, so it can't grow unboundedly from device traffic.
  */
 import { env } from './env.js';
+import { ingestHealth, ingestReady } from './health.js';
 
 const startTime = Date.now();
 const counters = new Map<string, number>();
@@ -31,6 +32,10 @@ export function addGauge(name: string, labels: Record<string, string>, delta: nu
   gauges.set(key, (gauges.get(key) ?? 0) + delta);
 }
 
+export function setGauge(name: string, labels: Record<string, string>, value: number): void {
+  gauges.set(labelKey(name, labels), value);
+}
+
 export function resetMetrics(): void {
   counters.clear();
   gauges.clear();
@@ -41,9 +46,20 @@ export const metrics = {
   message: (protocol: string, kind: string) => incCounter('ingest_messages_total', { protocol, kind }),
   forwarded: (protocol: string) => incCounter('ingest_forwarded_total', { protocol }),
   decodeError: (protocol: string) => incCounter('ingest_decode_errors_total', { protocol }),
-  sinkError: () => incCounter('ingest_sink_errors_total'),
+  sinkError: (category = 'unknown') => incCounter('ingest_sink_errors_total', { category }),
+  sinkAccepted: () => incCounter('ingest_sink_accepted_total'),
+  sinkSucceeded: () => incCounter('ingest_sink_succeeded_total'),
+  sinkRetry: (category: string) => incCounter('ingest_sink_retries_total', { category }),
+  sinkDropped: (reason: string) => incCounter('ingest_sink_dropped_total', { reason }),
+  sinkQueueState: (depth: number, inFlight: number, capacity: number) => {
+    setGauge('ingest_sink_queue_depth', {}, depth);
+    setGauge('ingest_sink_in_flight', {}, inFlight);
+    setGauge('ingest_sink_queue_capacity', {}, capacity);
+  },
   connectionOpened: (protocol: string) => addGauge('ingest_active_connections', { protocol }, 1),
   connectionClosed: (protocol: string) => addGauge('ingest_active_connections', { protocol }, -1),
+  connectionRejected: (reason: string) => incCounter('ingest_connection_rejected_total', { reason }),
+  admissionRejected: (reason: string) => incCounter('ingest_admission_rejected_total', { reason }),
 };
 
 const COUNTER_HELP: Record<string, string> = {
@@ -51,6 +67,12 @@ const COUNTER_HELP: Record<string, string> = {
   ingest_forwarded_total: 'Messages forwarded to the API sink, by protocol.',
   ingest_decode_errors_total: 'Decoder errors (malformed frames), by protocol.',
   ingest_sink_errors_total: 'Failed forwards to the API sink.',
+  ingest_sink_accepted_total: 'Messages admitted to the bounded sink queue.',
+  ingest_sink_succeeded_total: 'Messages successfully delivered to the API sink.',
+  ingest_sink_retries_total: 'Retry attempts after transient sink failures.',
+  ingest_sink_dropped_total: 'Messages shed before delivery, by overload reason.',
+  ingest_connection_rejected_total: 'TCP connections rejected before protocol processing.',
+  ingest_admission_rejected_total: 'Decoded device identities rejected before forwarding.',
 };
 
 /** Render the registry in Prometheus text exposition format. */
@@ -74,9 +96,16 @@ export function renderMetrics(): string {
   }
 
   if (gauges.size) {
-    lines.push('# HELP ingest_active_connections Currently open device sockets, by protocol.');
-    lines.push('# TYPE ingest_active_connections gauge');
-    for (const [key, value] of gauges) lines.push(`${key} ${value}`);
+    const gaugesByName = new Map<string, Array<[string, number]>>();
+    for (const [key, value] of gauges) {
+      const name = key.split('{')[0]!;
+      (gaugesByName.get(name) ?? gaugesByName.set(name, []).get(name)!).push([key, value]);
+    }
+    for (const [name, series] of gaugesByName) {
+      lines.push(`# HELP ${name} ${name === 'ingest_active_connections' ? 'Currently open device sockets, by protocol.' : name}`);
+      lines.push(`# TYPE ${name} gauge`);
+      for (const [key, value] of series) lines.push(`${key} ${value}`);
+    }
   }
 
   return `${lines.join('\n')}\n`;
@@ -93,8 +122,16 @@ export interface HttpResult {
  *  refused in production without one (mirrors the API). */
 export function handleHttp(method: string, path: string, authHeader?: string): HttpResult {
   if (method !== 'GET') return { status: 405, body: 'method not allowed\n', contentType: 'text/plain' };
-  if (path === '/health') {
+  if (path === '/live') {
     return { status: 200, body: JSON.stringify({ status: 'ok', service: 'trackflow-ingest' }), contentType: 'application/json' };
+  }
+  if (path === '/health' || path === '/ready') {
+    const ready = ingestReady();
+    return {
+      status: ready ? 200 : 503,
+      body: JSON.stringify({ status: ready ? 'ok' : 'not_ready', service: 'trackflow-ingest', ...ingestHealth() }),
+      contentType: 'application/json',
+    };
   }
   if (path === '/metrics') {
     const token = env.metricsToken;

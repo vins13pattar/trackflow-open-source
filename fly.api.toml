@@ -1,8 +1,9 @@
-# TrackFlow API on Fly.io. Scales to zero when idle (Fly auto-starts on a request).
+# TrackFlow API on Fly.io. Production keeps two small replicas warm; synthetic
+# staging can use a separate override that scales to zero.
 # Lives at the repo root so the build context is the pnpm workspace root.
 # Deploy:  fly deploy --config fly.api.toml
 app = "trackflow-api"
-primary_region = "bom" # Mumbai — India-first (DPDP residency). Match ingest + Neon.
+primary_region = "bom" # Mumbai reference overlay for the India-first data plane
 
 [build]
   dockerfile = "apps/api/Dockerfile"
@@ -16,7 +17,7 @@ primary_region = "bom" # Mumbai — India-first (DPDP residency). Match ingest +
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0 # scale to zero at idle
+  min_machines_running = 2
 
   [[http_service.checks]]
     method = "GET"

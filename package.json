@@ -28,6 +28,12 @@
     "db:down": "docker compose down",
     "ingest:dev": "pnpm --filter @trackflow/ingest dev",
     "ingest:sim": "pnpm --filter @trackflow/ingest sim",
+    "ingest:load": "pnpm --filter @trackflow/ingest sim:load",
+    "benchmark:tcp:local": "node benchmarks/run-tcp-local.mjs",
+    "benchmark:check": "node benchmarks/check-result.mjs",
+    "benchmark:report": "node benchmarks/report.mjs",
+    "restore:drill:local": "node benchmarks/restore-drill.mjs",
+    "cost:model": "node benchmarks/cost-model.mjs",
     "api:dev": "pnpm --filter @trackflow/api dev",
     "web:dev": "pnpm --filter @trackflow/web dev",
     "jobs:rollup": "pnpm --filter @trackflow/jobs rollup",
@@ -50,8 +56,9 @@
     "onlyBuiltDependencies": ["esbuild"],
     "overrides": {
       "esbuild": "0.28.1",
-      "postcss": "8.5.10",
-      "shell-quote": ">=1.8.4"
+      "postcss": "8.5.18",
+      "sharp": "0.35.0",
+      "shell-quote": "1.9.0"
     }
   }
 }

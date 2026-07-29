@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MemoryPresenceStore, UpstashPresenceStore } from './presence.js';
+import { MemoryPresenceStore, RedisPresenceStore, UpstashPresenceStore } from './presence.js';
 
 describe('MemoryPresenceStore', () => {
   it('binds, looks up, and releases a device for an instance', async () => {
@@ -77,5 +77,29 @@ describe('UpstashPresenceStore', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500 })));
     const s = new UpstashPresenceStore('https://r', 'tok');
     await expect(s.lookup('imei1')).rejects.toThrow(/Upstash presence store error: 500/);
+  });
+});
+
+describe('RedisPresenceStore', () => {
+  it('uses atomic compare-and-delete when releasing presence', async () => {
+    const calls: unknown[][] = [];
+    const client = {
+      get: async () => 'pod-a',
+      set: async (...args: unknown[]) => {
+        calls.push(args);
+        return 'OK';
+      },
+      eval: async (...args: unknown[]) => {
+        calls.push(args);
+        return 1;
+      },
+    };
+    const store = new RedisPresenceStore(client, 60_000);
+
+    await store.online('imei1', 'pod-a');
+    await store.offline('imei1', 'pod-a');
+    expect(await store.lookup('imei1')).toMatchObject({ instanceId: 'pod-a' });
+    expect(calls[0]).toEqual(['presence:imei1', 'pod-a', { PX: 60_000 }]);
+    expect(calls[1]?.[1]).toEqual({ keys: ['presence:imei1'], arguments: ['pod-a'] });
   });
 });
