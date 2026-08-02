@@ -301,8 +301,9 @@ read replicas, and archival tiering.
   run `30430688995` is green. This closes the public workflow evidence gap.
 - Authenticated API, PostgreSQL RLS/query-plan, and two-replica local Redis/SSE
   results are versioned with raw samples and CI budgets. They are bounded
-  synthetic development evidence; domain workflow and production-shaped
-  hosted capacity results remain absent.
+  synthetic development evidence. Geofence/alert, injected-channel notification
+  retry, daily rollup, and report-render results are also versioned locally;
+  production-shaped hosted and real-provider capacity results remain absent.
 - Multiple API/ingest replicas and three infrastructure failure recoveries have
   not been exercised.
 - The RLS suite now checks the tenant/system identity split and inventories

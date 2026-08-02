@@ -141,3 +141,39 @@ The 2026-08-02 local artifact is
 The generator used Node 24 on a 10-core Apple arm64 host with 24 GiB memory.
 The regression failure path was also exercised with an impossible p95 budget;
 it exited non-zero after restoring Redis subscriptions to the baseline.
+
+## Domain workflows and backlog recovery
+
+The domain harness creates one isolated synthetic tenant with devices,
+geofences, trips, and a failed notification backlog. It measures the production
+geofence transition/alert writer, the notification retry worker with an injected
+in-memory success channel, daily-rollup backlog recovery, and CSV/PDF report
+rendering. Cleanup hard-deletes the tenant and all dependent fixtures.
+
+```bash
+DOMAIN_DEVICES=50 DOMAIN_GEOFENCES=10 DOMAIN_TRIPS_PER_DEVICE=20 \
+  DOMAIN_REPORT_RUNS=5 DOMAIN_CONCURRENCY=10 \
+  OUTPUT=benchmarks/results/domain-local.json \
+  pnpm benchmark:domain:local
+```
+
+Regression controls are `DOMAIN_GEOFENCE_P95_BUDGET_MS`,
+`DOMAIN_RETRY_BUDGET_MS`, `DOMAIN_ROLLUP_BUDGET_MS`, and
+`DOMAIN_REPORT_P95_BUDGET_MS`. The benchmark never configures real email, SMS,
+push, WhatsApp, webhook, or object-storage providers. It is local synthetic
+workflow evidence, not external-provider or hosted capacity evidence.
+
+The 2026-08-02 local artifact is
+[`results/domain-local-2026-08-02.json`](results/domain-local-2026-08-02.json):
+
+| Workflow | Result |
+|---|---:|
+| Geofence entry + alert write | 50 devices x 10 rules; p50 23.84 ms, p95 25.95 ms, p99 26.44 ms; 500 alerts; 0 errors |
+| Notification retry backlog | 500/500 sent exactly once in 351.04 ms; 3 batches; 0 requeued/abandoned/remaining |
+| Daily report rollup backlog | 1,000 trips to 250/250 device-day rows in 4.53 ms |
+| CSV/PDF render | p95 35.70 ms across 5 runs; 9,386 bytes per run |
+| Fixture cleanup | 0 synthetic tenants remaining |
+
+The impossible-budget failure path exited non-zero after the same zero-tenant
+cleanup. These values are development evidence on a local Apple arm64 host, not
+a provider-delivery or production backlog guarantee.
