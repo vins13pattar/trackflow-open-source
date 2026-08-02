@@ -31,6 +31,7 @@
     "ingest:load": "pnpm --filter @trackflow/ingest sim:load",
     "benchmark:tcp:local": "node benchmarks/run-tcp-local.mjs",
     "benchmark:api:local": "node loadtest/authenticated-api.mjs",
+    "benchmark:db:local": "pnpm --filter @trackflow/db db:benchmark:local",
     "benchmark:check": "node benchmarks/check-result.mjs",
     "benchmark:report": "node benchmarks/report.mjs",
     "restore:drill:local": "node benchmarks/restore-drill.mjs",
