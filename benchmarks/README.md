@@ -63,3 +63,38 @@ PostgreSQL, and Redis all ran locally.
 The harness also verified a `204` hard-delete and a zero-row follow-up for its
 synthetic tenant. These values are reproducible development evidence, not a
 capacity promise.
+
+## PostgreSQL RLS and query plans
+
+The database harness creates two synthetic tenants and device-history datasets,
+measures the indexed history query through the tenant RLS identity and reviewed
+system identity, runs concurrent alternating-tenant reads, captures
+`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, inventories partitions/indexes/RLS
+policies/role attributes/retention-function grants, and deletes both fixtures in
+`finally`.
+
+```bash
+ROWS_PER_TENANT=5000 DB_QUERY_N=100 DB_CONCURRENCY=10 \
+  OUTPUT=benchmarks/results/db-local.json \
+  pnpm benchmark:db:local
+```
+
+`DB_P95_BUDGET_MS` enables the regression gate. This remains a local small-data
+measurement; it does not substitute for production-shaped cardinality, a hosted
+pooler, replicas, storage IOPS, or retention on large partitions.
+
+The 2026-08-02 local artifact is
+[`results/db-local-2026-08-02.json`](results/db-local-2026-08-02.json):
+
+| Operation | Queries | Concurrency | p50 | p95 | p99 | Errors |
+|---|---:|---:|---:|---:|---:|---:|
+| Tenant RLS history | 100 | 10 | 2.21 ms | 14.94 ms | 15.88 ms | 0 |
+| System-role history | 100 | 10 | 1.31 ms | 11.20 ms | 12.70 ms | 0 |
+| Alternating two-tenant history | 200 | 10 | 1.61 ms | 2.42 ms | 2.56 ms | 0 |
+
+The tenant `EXPLAIN ANALYZE` pruned to `positions_2026_08`, used its
+`device_id, fix_time` index, returned 100 rows in 0.044 ms, hit six shared
+buffers with zero reads, and applied the RLS tenant filter. The artifact also
+records `FORCE RLS`, role attributes, all partitions, indexes, the policy, and
+executable security-definer retention functions. Cleanup left zero fixture
+tenants.

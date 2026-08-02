@@ -84,6 +84,20 @@ jobs:
           name: authenticated-api-benchmark
           path: benchmarks/results/ci-api.json
           retention-days: 30
+      - name: PostgreSQL RLS and query-plan benchmark
+        env:
+          ROWS_PER_TENANT: '1000'
+          DB_QUERY_N: '40'
+          DB_CONCURRENCY: '10'
+          DB_P95_BUDGET_MS: '300'
+          OUTPUT: benchmarks/results/ci-db.json
+        run: pnpm benchmark:db:local
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: postgresql-benchmark
+          path: benchmarks/results/ci-db.json
+          retention-days: 30
 
   mobile-test:
     runs-on: ubuntu-latest
