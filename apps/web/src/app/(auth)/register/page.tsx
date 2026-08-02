@@ -3,7 +3,7 @@
 import { AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
@@ -14,6 +14,11 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', tenantName: '', email: '', password: '' });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Keep the server-rendered form inert until React owns its submit handler.
+  // This prevents an early click from falling through to native form navigation.
+  useEffect(() => setHydrated(true), []);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -64,7 +69,7 @@ export default function RegisterPage() {
           <Input id="password" type="password" autoComplete="new-password" required minLength={8} value={form.password} onChange={set('password')} />
           <p className="mt-1 text-xs text-muted-foreground">At least 8 characters.</p>
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full" disabled={!hydrated || loading}>
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           Create account
         </Button>

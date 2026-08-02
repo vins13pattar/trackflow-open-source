@@ -22,8 +22,25 @@ and Hono API backed by the repository's PostgreSQL and Redis containers.
 | Web typecheck and tests | Pass | `pnpm --filter @trackflow/web typecheck` and 5 Vitest checks |
 
 Browser screenshots were inspected during the run but are intentionally not
-versioned as release evidence. A deterministic automated journey should replace
-this manual local record before a general-availability claim.
+versioned as release evidence.
+
+## Automated browser gate
+
+The manual flow is now covered by `pnpm test:e2e:local`. Playwright runs the
+same synthetic signup, dashboard, device-registration, connection-guide, and
+workspace-cleanup journey in light-theme desktop Chromium and a dark-theme
+390 x 844 mobile profile. It also fails on browser errors or serious/critical
+axe accessibility findings.
+
+The gate builds and starts the web app with its same-origin API proxy, starts
+the API, expects local PostgreSQL and Redis, and never starts the ingest
+listener or simulator. CI installs Chromium and runs this suite after the
+repository build. Failed-run screenshots, traces, and video stay untracked
+under `test-results/`; successful runs leave no tenant or tracker rows behind.
+
+The first automated run found dark-theme primary text/button contrast below
+WCAG AA and a connection guide without dialog semantics. Both were corrected
+before recording the passing desktop and mobile result.
 
 ## Supported-client matrix
 
@@ -31,8 +48,8 @@ This matrix distinguishes repository/local evidence from external acceptance.
 
 | Client or integration | Repository/local status | Required external evidence |
 |---|---|---|
-| Chromium desktop | Browser journey passed locally | Repeat against the release candidate and hosted CSP/TLS headers |
-| Chromium responsive viewport | 390 x 844 journey passed locally | Physical Android Chrome coverage |
+| Chromium desktop | Automated browser and axe journey passes locally and in CI | Repeat against the release candidate and hosted CSP/TLS headers |
+| Chromium responsive viewport | Automated 390 x 844 browser and axe journey passes locally and in CI | Physical Android Chrome coverage |
 | Safari desktop and iOS Safari | Not executed | Current Safari plus supported iOS physical devices |
 | Firefox desktop | Not executed | Current Firefox release |
 | Android native app | Jest suite passes in CI | Physical background location, offline sync, deep links, push, battery, and map rendering |
