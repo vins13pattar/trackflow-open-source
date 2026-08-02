@@ -159,26 +159,37 @@ export default function DevicesPage() {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            <div className="grid grid-cols-12 gap-2 px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="hidden grid-cols-12 gap-2 px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:grid">
               <div className="col-span-5">Device</div>
               <div className="col-span-3">IMEI</div>
               <div className="col-span-2">Protocol</div>
               <div className="col-span-2 text-right">Actions</div>
             </div>
             {devices.map((d) => (
-              <div key={d.id} className="grid grid-cols-12 items-center gap-2 px-5 py-3 text-sm">
-                <div className="col-span-5">
+              <div
+                key={d.id}
+                className="grid grid-cols-1 gap-3 px-4 py-4 text-sm sm:grid-cols-12 sm:items-center sm:gap-2 sm:px-5 sm:py-3"
+              >
+                <div className="sm:col-span-5">
                   <p className="font-medium">{d.name}</p>
                   <div className="mt-0.5 flex items-center gap-2">
                     <StatusBadge status={deviceConnectivity(d)} />
                     <span className="text-xs text-muted-foreground">· {timeAgo(d.lastSeen)}</span>
                   </div>
                 </div>
-                <div className="col-span-3 font-mono text-xs text-muted-foreground">{d.imei}</div>
-                <div className="col-span-2">
+                <div className="min-w-0 sm:col-span-3">
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                    IMEI
+                  </p>
+                  <p className="break-all font-mono text-xs text-muted-foreground">{d.imei}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                    Protocol
+                  </p>
                   <span className="rounded bg-muted px-2 py-0.5 text-xs uppercase">{d.protocol}</span>
                 </div>
-                <div className="col-span-2 flex items-center justify-end gap-1">
+                <div className="flex items-center justify-start gap-1 sm:col-span-2 sm:justify-end">
                   <Button size="sm" variant="outline" onClick={() => setConnect(d)}>
                     <Cable className="h-3.5 w-3.5" /> Connect
                   </Button>

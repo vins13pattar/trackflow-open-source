@@ -82,14 +82,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       {mobileOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />
-          <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
-            <Sidebar onNavigate={() => setMobileOpen(false)} {...sidebarProps} />
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation menu"
+          />
+          <div
+            id="mobile-navigation"
+            className="fixed inset-y-0 left-0 z-50 lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation"
+          >
+            <Sidebar
+              onNavigate={() => setMobileOpen(false)}
+              onClose={() => setMobileOpen(false)}
+              {...sidebarProps}
+            />
           </div>
         </>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={title} onMenu={() => setMobileOpen(true)} />
+        <Topbar title={title} onMenu={() => setMobileOpen(true)} menuOpen={mobileOpen} />
         <main className="min-h-0 flex-1 overflow-auto">{children}</main>
       </div>
     </div>

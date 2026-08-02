@@ -1,6 +1,6 @@
 # Validation gap matrix
 
-Status is based on repository, local, and public CI evidence as of 2026-07-29. “Partial”
+Status is based on repository, local, and public CI evidence as of 2026-08-02. “Partial”
 means useful implementation exists but the requested proof is incomplete.
 
 | Goal | Status | Evidence | Remaining proof |
@@ -11,7 +11,7 @@ means useful implementation exists but the requested proof is incomplete.
 | TCP benchmark | Complete at baseline tier | Versioned before/after JSON and generated report for 1,000 sockets | Run on controlled Linux hardware and add a reconnect-storm time series |
 | API benchmark | Not complete | Existing ingest load smoke gate | Add authenticated read/write, tenant/RLS overhead, and multi-replica p50/p95/p99 runs |
 | PostgreSQL benchmark | Not complete | Partition/RLS schema and restore verification exist | Generate history, publish `EXPLAIN (ANALYZE, BUFFERS)`, noisy-neighbour and retention results |
-| SSE benchmark | Not complete | SSE route and bus exist | Exercise concurrent clients, slow consumers, cleanup, Redis/multi-replica fan-out and event loss |
+| SSE benchmark | Partial | Redis fan-out, source-echo suppression, tenant filtering, per-client bounded queues, slow-consumer isolation, and real-Redis CI coverage shipped in PR #26 | Publish concurrent-client/reconnect/loss percentiles and hosted multi-replica recovery evidence |
 | Domain benchmark | Not complete | Unit coverage for geofence, alerts, reports and notifications | Measure throughput, latency and backlog recovery |
 | Backpressure | Partial, ingest slice complete | Bounded per-device/global queue, concurrency, timeout, retry/backoff, shedding and drain tests | Apply explicit budgets to database pools, SSE clients, notifications and reconnect/IP admission |
 | High availability | Partial | Health endpoints and graceful ingest shutdown/drain | Exercise 2+ API replicas, multiple ingest instances and at least three infrastructure failure scenarios |
@@ -23,7 +23,8 @@ means useful implementation exists but the requested proof is incomplete.
 | Backup/DR | Complete for local logical restore | Synthetic `pg_dump`/`pg_restore` artifact with schema/RLS/partition and marker validation | Provider PITR, regional recovery, DNS/config/key recovery and derived-data rebuild remain unverified |
 | Cost/capacity | Complete as estimate | Reproducible JSON and Markdown for 1k/10k/50k | Replace public list-price inputs with bills/contracts and measured utilization |
 | ADRs | Complete | Thirteen case-study ADRs | Revisit when scale gates trigger |
-| Automated verification | Partial | Unit/integration suites, DB-enabled CI, Security, restore, and benchmark regression workflows | Multi-instance and infrastructure-failure tests remain |
+| Automated verification | Partial | Unit/integration suites, DB-enabled CI, Security, restore, benchmark regression workflows, and real-Redis realtime/command routing tests | Automated browser journeys, multi-instance recovery, and infrastructure-failure tests remain |
+| Browser/product acceptance | Partial | Synthetic local registration, dashboard, device creation, connection guide, desktop layout, and 390 x 844 responsive navigation/device layout are recorded in `docs/LOCAL_ACCEPTANCE.md` | Automate the journey and complete Safari, Firefox, physical mobile, hosted CSP/TLS, and external-provider acceptance |
 | Public case study | Partial | Workload, TCP report, cost model, diagrams, decisions, browser-verified screenshots, demo script, and green public workflows | Record and publish the demonstration |
 
 ## Priority order
