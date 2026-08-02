@@ -23,6 +23,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:e2e": "playwright test",
+    "test:e2e:local": "pnpm --filter @trackflow/db db:migrate && pnpm --filter @trackflow/db db:rls && playwright test",
     "test:protocols": "pnpm --filter @trackflow/protocols test",
     "db:up": "docker compose up -d postgres redis",
     "db:down": "docker compose down",
@@ -49,6 +51,8 @@
     "jobs:scheduler": "pnpm --filter @trackflow/jobs scheduler"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.0",
     "@types/node": "^22.10.5",
     "tsx": "^4.19.2",
     "turbo": "^2.3.3",

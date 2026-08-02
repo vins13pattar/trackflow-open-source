@@ -29,6 +29,8 @@ npm-debug.log*
 
 # Test / coverage
 coverage/
+playwright-report/
+test-results/
 
 # Wrangler / Cloudflare
 .wrangler/

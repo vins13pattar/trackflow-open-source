@@ -54,6 +54,10 @@ jobs:
       - run: pnpm --filter @trackflow/db db:rls
       - run: pnpm test
       - run: pnpm build
+      - name: Install Chromium for browser acceptance
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Synthetic browser and accessibility acceptance
+        run: pnpm test:e2e:local
       - name: Validate Prometheus rules
         run: >-
           docker run --rm --entrypoint /bin/promtool

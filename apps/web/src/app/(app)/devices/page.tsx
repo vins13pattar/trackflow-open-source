@@ -214,11 +214,17 @@ export default function DevicesPage() {
       </Card>
 
       {connect && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setConnect(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setConnect(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="connection-guide-title"
+        >
           <Card className="w-full max-w-lg p-5" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-start justify-between">
               <div>
-                <h3 className="font-semibold">Connect “{connect.name}”</h3>
+                <h3 id="connection-guide-title" className="font-semibold">Connect “{connect.name}”</h3>
                 <p className="text-xs text-muted-foreground">{connect.protocol.toUpperCase()} device</p>
               </div>
               <button onClick={() => setConnect(null)} className="rounded p-1 text-muted-foreground hover:bg-accent" aria-label="Close">
