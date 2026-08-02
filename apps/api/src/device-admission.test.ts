@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateDeviceAdmission, type DeviceAdmissionRecord } from './routes/positions.js';
 
-const active: DeviceAdmissionRecord = { imei: '123456789012345', protocol: 'gt06', status: 'active' };
+const active: DeviceAdmissionRecord = {
+  id: '11111111-1111-4111-8111-111111111111',
+  imei: '123456789012345',
+  protocol: 'gt06',
+  status: 'active',
+};
 const base = {
   imei: active.imei,
   protocol: 'gt06' as const,
@@ -37,6 +42,6 @@ describe('device ingest admission', () => {
   });
 
   it('allows an active matching device over mTLS', () => {
-    expect(evaluateDeviceAdmission(active, base, true)).toEqual({ allowed: true, reason: 'allowed' });
+    expect(evaluateDeviceAdmission(active, base, true)).toEqual({ allowed: true, reason: 'allowed', deviceId: active.id });
   });
 });

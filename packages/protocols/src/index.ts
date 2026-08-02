@@ -7,8 +7,14 @@ export { TeltonikaDecoder } from './teltonika/index.js';
 export { NmeaDecoder } from './nmea/index.js';
 export { QueclinkDecoder } from './queclink/index.js';
 export { MeitrackDecoder } from './meitrack/index.js';
-export { encodeGt06Login, encodeGt06Location, encodeGt06Status } from './gt06/encode.js';
-export type { Gt06LocationInput, Gt06StatusInput } from './gt06/encode.js';
+export {
+  encodeGt06Command,
+  encodeGt06Login,
+  encodeGt06Location,
+  encodeGt06Status,
+  parseGt06CommandResponse,
+} from './gt06/encode.js';
+export type { Gt06CommandResponse, Gt06LocationInput, Gt06StatusInput } from './gt06/encode.js';
 export { encodeH02Location } from './h02/encode.js';
 export type { H02LocationInput } from './h02/encode.js';
 export {

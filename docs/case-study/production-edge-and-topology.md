@@ -119,13 +119,13 @@ Vercel Pro initially unless the extra $20/month is material.
   security alerts are implemented and load-tested.
 - Two ingest and two API replicas pass connection-drain, instance-loss, Redis
   loss, and database-unavailable exercises.
-- Multi-replica SSE uses Redis or another shared bus; the current in-process bus
-  is not a production multi-replica design.
+- The shipped Redis SSE bridge and command wake-up path must still pass a hosted
+  multi-replica latency, reconnect, slow-consumer, and Redis-loss exercise.
 - The ingest handoff has a documented data-loss budget. For a stricter RPO than
   the current bounded in-memory queue can provide, add durable buffering before
   production.
-- PostgreSQL uses the non-superuser application role with forced RLS; owner
-  credentials are migration-only.
+- PostgreSQL uses separate tenant (`NOBYPASSRLS`) and reviewed-system identities
+  with forced RLS; owner credentials are migration-only.
 - Provider PITR and a restore drill, secret rotation, encryption, retention,
   tenant deletion/export, audit review, and incident response are verified with
   synthetic data before admitting real locations.

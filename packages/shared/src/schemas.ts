@@ -220,6 +220,28 @@ export const queueDeviceCommandSchema = z.object({
   expiresInSeconds: z.number().int().positive().max(7 * 24 * 3600).optional(),
 });
 
+export const pendingDeviceCommandsSchema = z.object({
+  supportedCommands: z.array(z.enum(['request_location'])).max(1).default([]),
+});
+
+export const commandWakeupSchema = z.object({
+  version: z.literal(1),
+  instanceId: z.string().min(1).max(200),
+  imei: z.string().regex(/^\d{14,16}$/),
+  deviceId: z.string().uuid(),
+  commandId: z.string().uuid(),
+});
+
+export type CommandWakeup = z.infer<typeof commandWakeupSchema>;
+
+export function commandWakeupChannel(instanceId: string): string {
+  return `trackflow:commands:v1:${encodeURIComponent(instanceId)}`;
+}
+
+export function supportsImmediateDeviceCommand(protocol: string, command: string): boolean {
+  return (protocol === 'gt06' || protocol === 'teltonika') && command === 'request_location';
+}
+
 export const ackDeviceCommandSchema = z.object({
   status: z.enum(['acked', 'failed']),
   response: z.string().max(2000).optional(),

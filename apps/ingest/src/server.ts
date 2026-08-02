@@ -1,6 +1,8 @@
 import net from 'node:net';
 import { SessionContext, defaultRegistry } from '@trackflow/protocols';
 import { getAdmissionClient } from './admission.js';
+import { startCommandWakeupSubscriber } from './command-router.js';
+import { ActiveCommandSessions, getDeviceCommandClient } from './commands.js';
 import { env } from './env.js';
 import { startHttpServer } from './http.js';
 import { metrics } from './metrics.js';
@@ -23,11 +25,18 @@ const registry = defaultRegistry();
 const store = getSessionStore();
 const presence = createPresenceStore();
 const admission = getAdmissionClient();
+const commandSessions = new ActiveCommandSessions(getDeviceCommandClient());
 const connectionGate = new ConnectionGate(env.transportSecurity);
 const POD_ID = process.env.INGEST_POD_ID ?? env.instanceId;
 const MAX_BUFFER = 64 * 1024; // guard against unbounded growth from junk input
 
 const sockets = new Set<net.Socket>();
+const stopCommandWakeups = startCommandWakeupSubscriber(async (message) => {
+  await commandSessions.drain(message.imei, message.deviceId);
+}).catch((error) => {
+  reportIngestError(error as Error, { where: 'commands.subscribe' });
+  return async () => {};
+});
 
 function startListener(port: number, protocolName: string): net.Server {
   const decoder = registry.get(protocolName);
@@ -63,6 +72,7 @@ function startListener(port: number, protocolName: string): net.Server {
     const connectionKey = `${protocolName}:${peer}`;
     let imeiPersisted = false;
     let admittedImei: string | null = null;
+    let unregisterCommandSession: (() => void) | null = null;
     void store.lookupImei(connectionKey).then((imei) => {
       if (imei && !ctx.imei) {
         ctx.setImei(imei);
@@ -113,6 +123,12 @@ function startListener(port: number, protocolName: string): net.Server {
         return false;
       }
       admittedImei = imei;
+      unregisterCommandSession = commandSessions.register(imei, decision.deviceId, decoder.protocol, socket);
+      // Correctness fallback: every admitted connection polls durable queued
+      // commands even when Redis/presence was unavailable or stale.
+      void commandSessions.drain(imei, decision.deviceId).catch((error) => {
+        reportIngestError(error as Error, { where: 'commands.poll_on_connect', imei });
+      });
       return true;
     };
 
@@ -202,6 +218,7 @@ function startListener(port: number, protocolName: string): net.Server {
       if (boundImei) {
         void presence.offline(boundImei, env.instanceId).catch(() => {});
       }
+      unregisterCommandSession?.();
     });
   });
 
@@ -235,6 +252,8 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   for (const socket of sockets) socket.end();
 
   const drained = await drainForwarder(env.shutdownTimeoutMs);
+  const stopWakeups = await stopCommandWakeups;
+  await stopWakeups();
   if (!drained) {
     console.warn(`[ingest] drain timed out after ${env.shutdownTimeoutMs}ms; closing ${sockets.size} socket(s)`);
     for (const socket of sockets) socket.destroy();

@@ -1,9 +1,17 @@
 import { timingSafeEqual } from 'node:crypto';
-import { and, deviceCommands, devices, eq, isNotNull, lt, withSystem } from '@trackflow/db';
-import { ackDeviceCommandSchema, errors, ingestAdmissionSchema, ingestPositionSchema, verifyToken } from '@trackflow/shared';
+import { and, deviceCommands, devices, eq, inArray, isNotNull, lt, withSystem } from '@trackflow/db';
+import {
+  ackDeviceCommandSchema,
+  errors,
+  ingestAdmissionSchema,
+  ingestPositionSchema,
+  pendingDeviceCommandsSchema,
+  verifyToken,
+} from '@trackflow/shared';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { dispatchAlerts } from '../alert-dispatch.js';
+import { BoundedEventQueue } from '../bounded-event-queue.js';
 import { subscribeAlerts, subscribePositions } from '../bus.js';
 import { db, systemDb } from '../db.js';
 import { env } from '../env.js';
@@ -27,13 +35,14 @@ internalRoutes.use('/positions', requireIngestToken);
 internalRoutes.use('/devices/*', requireIngestToken);
 
 export interface DeviceAdmissionRecord {
+  id: string;
   imei: string;
   protocol: string;
   status: string;
 }
 
 export type DeviceAdmissionDecision =
-  | { allowed: true; reason: 'allowed' }
+  | { allowed: true; reason: 'allowed'; deviceId: string }
   | {
       allowed: false;
       reason: 'unknown_imei' | 'inactive' | 'protocol_mismatch' | 'identity_mismatch' | 'development_forbidden';
@@ -53,14 +62,14 @@ export function evaluateDeviceAdmission(
   if (request.transportSecurity === 'mtls' && request.authenticatedImei !== device.imei) {
     return { allowed: false, reason: 'identity_mismatch' };
   }
-  return { allowed: true, reason: 'allowed' };
+  return { allowed: true, reason: 'allowed', deviceId: device.id };
 }
 
 internalRoutes.post('/devices/admission', async (c) => {
   const request = ingestAdmissionSchema.parse(await c.req.json());
   const device = await withSystem(systemDb, 'device-command-routing', async (tx) => {
     const [row] = await tx
-      .select({ imei: devices.imei, protocol: devices.protocol, status: devices.status })
+      .select({ id: devices.id, imei: devices.imei, protocol: devices.protocol, status: devices.status })
       .from(devices)
       .where(eq(devices.imei, request.imei));
     return row ?? null;
@@ -121,21 +130,31 @@ realtimeRoutes.get('/positions', async (c) => {
   const claims = await verifyToken(token, 'access', env.jwt);
 
   return streamSSE(c, async (stream) => {
+    const queue = new BoundedEventQueue<{ event: 'position' | 'alert'; data: string }>(256);
+    const enqueue = (event: 'position' | 'alert', data: unknown) => {
+      if (!queue.push({ event, data: JSON.stringify(data) })) stream.abort();
+    };
     const unsubPos = subscribePositions(claims.tid, (event) => {
-      void stream.writeSSE({ event: 'position', data: JSON.stringify(event) });
+      enqueue('position', event);
     });
     const unsubAlert = subscribeAlerts(claims.tid, (event) => {
-      void stream.writeSSE({ event: 'alert', data: JSON.stringify(event) });
+      enqueue('alert', event);
     });
     const unsubscribe = () => {
       unsubPos();
       unsubAlert();
+      queue.close();
     };
     stream.onAbort(unsubscribe);
-    // Heartbeat keeps proxies from closing the idle connection.
-    while (!stream.aborted) {
-      await stream.writeSSE({ event: 'ping', data: String(Date.now()) });
-      await stream.sleep(25_000);
+    try {
+      while (!stream.aborted) {
+        const item = await queue.next(25_000);
+        if (stream.aborted) break;
+        if (item) await stream.writeSSE(item);
+        else await stream.writeSSE({ event: 'ping', data: String(Date.now()) });
+      }
+    } finally {
+      unsubscribe();
     }
   });
 });
@@ -147,17 +166,33 @@ realtimeRoutes.get('/positions', async (c) => {
  *  back over the protocol-specific wire. */
 internalRoutes.post('/devices/:id/commands/pending', async (c) => {
   const deviceId = c.req.param('id');
+  const { supportedCommands } = pendingDeviceCommandsSchema.parse(await c.req.json().catch(() => ({})));
+  if (supportedCommands.length === 0) return c.json({ commands: [] });
   const now = new Date();
   const rows = await withSystem(systemDb, 'device-command-routing', async (tx) => {
     // Flag expired commands while we're here so they don't pile up.
     await tx
       .update(deviceCommands)
       .set({ status: 'expired' })
-      .where(and(eq(deviceCommands.deviceId, deviceId), eq(deviceCommands.status, 'queued'), isNotNull(deviceCommands.expiresAt), lt(deviceCommands.expiresAt, now)));
+      .where(
+        and(
+          eq(deviceCommands.deviceId, deviceId),
+          eq(deviceCommands.status, 'queued'),
+          inArray(deviceCommands.command, supportedCommands),
+          isNotNull(deviceCommands.expiresAt),
+          lt(deviceCommands.expiresAt, now),
+        ),
+      );
     return tx
       .update(deviceCommands)
       .set({ status: 'sent', sentAt: now })
-      .where(and(eq(deviceCommands.deviceId, deviceId), eq(deviceCommands.status, 'queued')))
+      .where(
+        and(
+          eq(deviceCommands.deviceId, deviceId),
+          eq(deviceCommands.status, 'queued'),
+          inArray(deviceCommands.command, supportedCommands),
+        ),
+      )
       .returning();
   });
   return c.json({

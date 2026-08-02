@@ -22,15 +22,23 @@ const request = {
 describe('AdmissionClient', () => {
   it('authenticates the request and caches an allow decision', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ allowed: true, reason: 'allowed' }), {
+      new Response(JSON.stringify({ allowed: true, reason: 'allowed', deviceId: '11111111-1111-4111-8111-111111111111' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
     );
     const admission = client(fetchImpl);
 
-    await expect(admission.check(request)).resolves.toEqual({ allowed: true, reason: 'allowed' });
-    await expect(admission.check(request)).resolves.toEqual({ allowed: true, reason: 'allowed' });
+    await expect(admission.check(request)).resolves.toEqual({
+      allowed: true,
+      reason: 'allowed',
+      deviceId: '11111111-1111-4111-8111-111111111111',
+    });
+    await expect(admission.check(request)).resolves.toEqual({
+      allowed: true,
+      reason: 'allowed',
+      deviceId: '11111111-1111-4111-8111-111111111111',
+    });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).toEqual(
       expect.objectContaining({ 'x-ingest-token': 'secret', 'content-type': 'application/json' }),

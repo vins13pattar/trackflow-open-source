@@ -13,7 +13,7 @@ describe('MQTT ingest handler', () => {
       forward: async (m) => {
         calls.push(m);
       },
-      admit: async () => ({ allowed: true, reason: 'allowed' }),
+      admit: async () => ({ allowed: true, reason: 'allowed', deviceId: '11111111-1111-4111-8111-111111111111' }),
       log: () => {},
     });
     return { handler, calls };
@@ -49,7 +49,7 @@ describe('MQTT ingest handler', () => {
     const log = vi.fn();
     const handler = createMqttHandler({
       forward: async () => {},
-      admit: async () => ({ allowed: true, reason: 'allowed' }),
+      admit: async () => ({ allowed: true, reason: 'allowed', deviceId: '11111111-1111-4111-8111-111111111111' }),
       log,
     });
     const n = await handler.onMessage(`trackflow/nonsense/${IMEI}/up`, Buffer.from([0]));
