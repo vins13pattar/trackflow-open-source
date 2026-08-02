@@ -13,7 +13,22 @@ const server = http.createServer((request, response) => {
       const fail = Math.random() < failureRate;
       if (request.method === 'POST' && request.url === '/internal/devices/admission' && !fail) {
         response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-        response.end(JSON.stringify({ allowed: true, reason: 'allowed' }));
+        response.end(
+          JSON.stringify({
+            allowed: true,
+            reason: 'allowed',
+            deviceId: '11111111-1111-4111-8111-111111111111',
+          }),
+        );
+        return;
+      }
+      if (
+        request.method === 'POST' &&
+        /^\/internal\/devices\/[0-9a-f-]+\/commands\/pending$/i.test(request.url ?? '') &&
+        !fail
+      ) {
+        response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        response.end(JSON.stringify({ commands: [] }));
         return;
       }
       response.writeHead(fail ? 503 : 204);
