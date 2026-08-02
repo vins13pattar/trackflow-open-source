@@ -16,12 +16,14 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [expired, setExpired] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   // Set once the password is accepted but the account requires a 2FA code.
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [code, setCode] = useState('');
 
   useEffect(() => {
     setExpired(new URLSearchParams(window.location.search).get('expired') === '1');
+    setHydrated(true);
   }, []);
 
   async function onSubmit(e: React.FormEvent) {
@@ -135,7 +137,7 @@ export default function LoginPage() {
           <Label htmlFor="password">Password</Label>
           <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full" disabled={!hydrated || loading}>
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           Sign in
         </Button>

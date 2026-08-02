@@ -42,6 +42,13 @@ The first automated run found dark-theme primary text/button contrast below
 WCAG AA and a connection guide without dialog semantics. Both were corrected
 before recording the passing desktop and mobile result.
 
+Authentication and tenant-boundary coverage now also verifies that a signed-in
+tenant sees only its own synthetic device, an invalid access token clears the
+browser session and shows the expiry notice, and an MFA-enrolled owner must
+complete the TOTP challenge before the dashboard session is created. The MFA
+journey rejects a wrong code first, then accepts the current code without
+re-registering the account.
+
 ## Supported-client matrix
 
 This matrix distinguishes repository/local evidence from external acceptance.
