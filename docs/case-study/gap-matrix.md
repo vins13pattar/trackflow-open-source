@@ -9,7 +9,7 @@ means useful implementation exists but the requested proof is incomplete.
 | Workload model | Complete | `workload-model.md`; reproducible cost assumptions | Replace planning assumptions with production observations if TrackFlow is operated |
 | Device simulator | Complete for requested behaviours | Four protocols, unique IMEIs, fragmentation, invalid/duplicate/out-of-order traffic, clock drift, burst, churn, reconnect and JSON metrics | Validate 10,000-device generator host limits |
 | TCP benchmark | Complete at baseline tier | Versioned before/after JSON and generated report for 1,000 sockets | Run on controlled Linux hardware and add a reconnect-storm time series |
-| API benchmark | Not complete | Existing ingest load smoke gate | Add authenticated read/write, tenant/RLS overhead, and multi-replica p50/p95/p99 runs |
+| API benchmark | Partial | Authenticated tenant read/write harness publishes p50/p95/p99, throughput, errors, raw samples, cleanup status, and CI regression budgets | Add production-shaped datasets, explicit RLS-overhead comparison, hosted pooler/network, and multi-replica runs |
 | PostgreSQL benchmark | Not complete | Partition/RLS schema and restore verification exist | Generate history, publish `EXPLAIN (ANALYZE, BUFFERS)`, noisy-neighbour and retention results |
 | SSE benchmark | Partial | Redis fan-out, source-echo suppression, tenant filtering, per-client bounded queues, slow-consumer isolation, and real-Redis CI coverage shipped in PR #26 | Publish concurrent-client/reconnect/loss percentiles and hosted multi-replica recovery evidence |
 | Domain benchmark | Not complete | Unit coverage for geofence, alerts, reports and notifications | Measure throughput, latency and backlog recovery |

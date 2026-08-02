@@ -286,7 +286,7 @@ Goal: SLOs are measured and alerting is burn-rate-driven (PRD §6.7).
 
 #### M14 — Scale & performance
 Goal: hold the PRD design point (50k devices, 10k sockets, p95 < 300 ms) with headroom.
-- [ ] Load test to **10k simulated devices** (extend `loadtest/`); tighten the CI p95 budget to 300 ms.
+- [~] Load test to **10k simulated devices**. Authenticated device-list reads and device-update writes now have separate p50/p95/p99 JSON evidence plus 300 ms CI p95 gates; the controlled 10,000-device TCP and production-shaped dataset runs remain open.
 - [ ] **DB scale pass**: index audit under production-shaped data, connection pooling (Neon pooler/PgBouncer), query plans on the hot paths (positions read, SSE snapshot, analytics rollup reads).
 - [x] **SSE fan-out across instances**: provider-neutral Redis pub/sub bridge, publisher echo suppression, tenant filtering, and per-client bounded mailboxes; real-Redis integration test in CI. See `docs/REALTIME_AND_COMMAND_ROUTING.md`.
 - [ ] Web map performance: marker clustering ≥1k devices (shared with M6), trail simplification.
