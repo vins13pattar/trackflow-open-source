@@ -56,30 +56,32 @@ and `vercel`.
 ### 1. Database and Redis — India region
 Create PostgreSQL 16 and Redis 7 in the same India region as compute. Require
 encryption, private connectivity where available, backups/PITR, and an
-export/restore path. Create the non-superuser app role + RLS because
-superusers bypass RLS.
+export/restore path. Create separate tenant and reviewed-system roles; the
+tenant role is `NOBYPASSRLS` and cannot self-promote.
 
 **Run it via the one-click workflow (recommended)** — keeps the DB URL out of
 your laptop and out of chat. Add repo secrets `ADMIN_DATABASE_URL` (database owner)
-and `APP_DB_PASSWORD` (and optionally `DATABASE_URL` = the app-role URL to prove
+and both runtime passwords (and optionally the runtime URLs to prove
 isolation), then run **Actions → "DB migrate + RLS" → Run workflow** (type
-`migrate` to confirm). It applies migrations, provisions the `trackflow_app`
-role + RLS, verifies coherence, and runs the RLS isolation test.
+`migrate` to confirm). It applies migrations, provisions `trackflow_app` and
+`trackflow_system`, verifies coherence, and runs the RLS isolation test.
 
 **Or run it locally:**
 ```bash
 export ADMIN_DATABASE_URL="postgres://owner:***@<postgres-host>/trackflow?sslmode=require"
 export APP_DB_PASSWORD="$(openssl rand -hex 24)"
+export SYSTEM_DB_PASSWORD="$(openssl rand -hex 24)"
 pnpm --filter @trackflow/db db:migrate    # apply committed migrations (0000–0026)
-pnpm --filter @trackflow/db db:rls         # create trackflow_app role + RLS policies
-# Runtime DATABASE_URL (app role — this is what the API/jobs connect as):
+pnpm --filter @trackflow/db db:rls         # create tenant/system roles + RLS policies
+# API tenant-query pool:
 #   postgres://trackflow_app:$APP_DB_PASSWORD@<postgres-host>/trackflow?sslmode=require
+# Reviewed API system paths and jobs:
+#   postgres://trackflow_system:$SYSTEM_DB_PASSWORD@<postgres-host>/trackflow?sslmode=require
 ```
 
-> **Critical:** the API/jobs must connect as the **non-superuser `trackflow_app`
-> role**, never the database owner. The owner bypasses RLS, which would silently
-> break tenant isolation. `ADMIN_DATABASE_URL` is for migrations only — don't
-> put it on the running services.
+> **Critical:** tenant queries must use `trackflow_app`; reviewed cross-tenant
+> work must use `trackflow_system`; neither running service receives the owner
+> URL. `ADMIN_DATABASE_URL` is for migrations only.
 
 ### 2. Generate the app secrets (run locally; set into Fly/Vercel, never commit)
 ```bash
@@ -95,6 +97,7 @@ openssl rand -hex 32   # METRICS_TOKEN      (Prometheus scrape, shared by all 3)
 fly apps create trackflow-api
 fly secrets set -a trackflow-api \
   DATABASE_URL="postgres://trackflow_app:***@<postgres-host>/trackflow?sslmode=require" \
+  SYSTEM_DATABASE_URL="postgres://trackflow_system:***@<postgres-host>/trackflow?sslmode=require" \
   REDIS_URL="rediss://***@<redis-host>:6379" \
   JWT_ACCESS_SECRET=… JWT_REFRESH_SECRET=… INGEST_SINK_TOKEN=… \
   ADMIN_API_TOKEN=… METRICS_TOKEN=… \
@@ -131,7 +134,7 @@ For real fleets, `INGEST_SECURITY_MODE=mtls` is the default. Legacy fleets use
 ```bash
 fly apps create trackflow-jobs
 fly secrets set -a trackflow-jobs \
-  DATABASE_URL="…app role…"  METRICS_TOKEN=…  SENTRY_DSN=… \
+  SYSTEM_DATABASE_URL="…system role…"  METRICS_TOKEN=…  SENTRY_DSN=… \
   RESEND_API_KEY=…  EMAIL_FROM="TrackFlow <noreply@vinodspattar.in>"  REPORT_EMAIL=… \
   S3_ENDPOINT=…  S3_BUCKET=…  S3_ACCESS_KEY_ID=…  S3_SECRET_ACCESS_KEY=…   # India-region archive
 fly deploy --config fly.jobs.toml
@@ -169,7 +172,8 @@ origin to the web app. Tenants then CNAME their domain to your hostname.
 
 | Variable | API | Ingest | Jobs | Web (Vercel) |
 |---|:--:|:--:|:--:|:--:|
-| `DATABASE_URL` (app role) | ✅ | | ✅ | |
+| `DATABASE_URL` (tenant role) | ✅ | | | |
+| `SYSTEM_DATABASE_URL` (reviewed cross-tenant role) | ✅ | | ✅ | |
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | ✅ | | | |
 | `INGEST_SINK_TOKEN` | ✅ | ✅ | | |
 | `INGEST_SINK_URL` | | ✅ | | |
@@ -196,7 +200,7 @@ laptop) — it does **not** belong on the running services.
   impact justifies it.
 
 ## Go-live checklist
-- [ ] PostgreSQL and Redis created in India; migrations + RLS applied; app connects as `trackflow_app`
+- [ ] PostgreSQL and Redis created in India; migrations + RLS applied; API tenant pool uses `trackflow_app`, reviewed API paths/jobs use `trackflow_system`
 - [ ] Every real device has mTLS or is behind an approved private authenticated gateway
 - [ ] Unknown IMEIs rejected at the edge; connection, replay and plausibility controls load-tested
 - [ ] RLS isolation test green (`TF_DB_TESTS=1 pnpm --filter @trackflow/db test`)

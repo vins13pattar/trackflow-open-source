@@ -23,7 +23,7 @@ const withGrace = (days: number): number => (days < 0 ? -1 : days + GRACE_DAYS);
  *  admin-configured limits: by plan-version id (for pinned tenants) and the
  *  current active version per plan key. */
 async function loadHistoryWindows(): Promise<{ byVersionId: Map<string, number>; currentByKey: Map<string, number> }> {
-  const rows = await withSystem(db, (tx) =>
+  const rows = await withSystem(db, 'system-job', (tx) =>
     tx
       .select({ key: plans.key, active: plans.active, versionId: planVersions.id, version: planVersions.version, status: planVersions.status, limits: planVersions.limits })
       .from(plans)
@@ -44,7 +44,7 @@ async function loadHistoryWindows(): Promise<{ byVersionId: Map<string, number>;
 
 export async function runRetention(): Promise<void> {
   // 1) Keep a forward window of monthly partitions (and the default catch-all).
-  await withSystem(db, (tx) =>
+  await withSystem(db, 'system-job', (tx) =>
     tx.execute(sql`select trackflow_provision_positions_partitions(1, ${MONTHS_AHEAD})`),
   );
 
@@ -59,7 +59,7 @@ export async function runRetention(): Promise<void> {
     return withGrace(raw);
   };
 
-  const rows = await withSystem(db, (tx) =>
+  const rows = await withSystem(db, 'system-job', (tx) =>
     tx.select({ id: tenants.id, name: tenants.name, plan: tenants.plan, planVersionId: tenants.planVersionId }).from(tenants),
   );
 
@@ -73,7 +73,7 @@ export async function runRetention(): Promise<void> {
     }
     maxFiniteDays = Math.max(maxFiniteDays, days);
     const cutoff = new Date(Date.now() - days * DAY_MS);
-    await withSystem(db, (tx) =>
+    await withSystem(db, 'system-job', (tx) =>
       tx.delete(positions).where(and(eq(positions.tenantId, t.id), lt(positions.fixTime, cutoff))),
     );
     console.log(`[retention] ${t.name} (${t.plan}): purged positions before ${cutoff.toISOString().slice(0, 10)}`);
@@ -86,7 +86,7 @@ export async function runRetention(): Promise<void> {
     console.log('[retention] keeping all partitions (an unlimited-retention tenant exists, or no finite plans)');
   } else {
     const cutoff = new Date(Date.now() - maxFiniteDays * DAY_MS).toISOString().slice(0, 10);
-    const result = await withSystem(db, (tx) =>
+    const result = await withSystem(db, 'system-job', (tx) =>
       tx.execute(sql`select trackflow_drop_positions_partitions_before(${cutoff}::date) as n`),
     );
     const dropped = Number((result as unknown as Array<{ n: number | string }>)[0]?.n ?? 0);

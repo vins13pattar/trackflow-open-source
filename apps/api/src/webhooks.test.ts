@@ -4,7 +4,7 @@ import { desc, eq, tenants, webhookDeliveries, webhooks, withSystem } from '@tra
 import { issueTokens } from '@trackflow/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { env } from './env.js';
 import { deliverEvent, deliverOne } from './webhook-service.js';
 
@@ -59,11 +59,11 @@ describe.skipIf(!enabled)('webhooks: delivery log, edit, device filter', () => {
   it('logs one row per attempt (success in attempt 1)', async () => {
     receiverStatus = 200;
     const hook = await createHook({ events: ['alert.triggered'] });
-    const [row] = await withSystem(db, (tx) => tx.select().from(webhooks).where(eq(webhooks.id, hook.id)));
+    const [row] = await withSystem(db, 'test-fixture', (tx) => tx.select().from(webhooks).where(eq(webhooks.id, hook.id)));
     const outcome = await deliverOne(row!, 'alert.triggered', { hello: 'world' });
     expect(outcome).toMatchObject({ ok: true, attempts: 1 });
 
-    const log = await withSystem(db, (tx) =>
+    const log = await withSystem(db, 'test-fixture', (tx) =>
       tx.select().from(webhookDeliveries).where(eq(webhookDeliveries.webhookId, hook.id)).orderBy(desc(webhookDeliveries.createdAt)),
     );
     expect(log).toHaveLength(1);
@@ -73,10 +73,10 @@ describe.skipIf(!enabled)('webhooks: delivery log, edit, device filter', () => {
   it('records every retry on failure and reports HTTP status', async () => {
     receiverStatus = 500;
     const hook = await createHook({ events: ['alert.triggered'] });
-    const [row] = await withSystem(db, (tx) => tx.select().from(webhooks).where(eq(webhooks.id, hook.id)));
+    const [row] = await withSystem(db, 'test-fixture', (tx) => tx.select().from(webhooks).where(eq(webhooks.id, hook.id)));
     const outcome = await deliverOne(row!, 'alert.triggered', {});
     expect(outcome).toMatchObject({ ok: false, attempts: 3, status: 500 });
-    const log = await withSystem(db, (tx) => tx.select().from(webhookDeliveries).where(eq(webhookDeliveries.webhookId, hook.id)));
+    const log = await withSystem(db, 'test-fixture', (tx) => tx.select().from(webhookDeliveries).where(eq(webhookDeliveries.webhookId, hook.id)));
     expect(log).toHaveLength(3);
     expect(log.every((r) => r.status === 'failed' && r.httpStatus === 500)).toBe(true);
   });
@@ -98,7 +98,7 @@ describe.skipIf(!enabled)('webhooks: delivery log, edit, device filter', () => {
   it('GET /webhooks/:id/deliveries returns the per-attempt log (filterable)', async () => {
     receiverStatus = 500;
     const hook = await createHook({ events: ['alert.triggered'] });
-    const [row] = await withSystem(db, (tx) => tx.select().from(webhooks).where(eq(webhooks.id, hook.id)));
+    const [row] = await withSystem(db, 'test-fixture', (tx) => tx.select().from(webhooks).where(eq(webhooks.id, hook.id)));
     await deliverOne(row!, 'alert.triggered', {});
     const res = await app.request(`/webhooks/${hook.id}/deliveries?status=failed`, {
       headers: { authorization: `Bearer ${token}` },
@@ -114,7 +114,7 @@ describe.skipIf(!enabled)('webhooks: delivery log, edit, device filter', () => {
     // Clean out hooks from earlier tests in this file so we measure only the
     // filter-under-test (every prior hook in this tenant also subscribed to
     // alert.triggered and would otherwise inflate receivedCount).
-    await withSystem(db, (tx) => tx.delete(webhooks).where(eq(webhooks.tenantId, tenantId)));
+    await withSystem(db, 'test-fixture', (tx) => tx.delete(webhooks).where(eq(webhooks.tenantId, tenantId)));
     const allowedDevice = '00000000-0000-0000-0000-000000000001';
     const otherDevice = '00000000-0000-0000-0000-000000000002';
     const hook = await createHook({ events: ['alert.triggered'], deviceIds: [allowedDevice] });
@@ -122,12 +122,12 @@ describe.skipIf(!enabled)('webhooks: delivery log, edit, device filter', () => {
     receivedCount = 0;
     await deliverEvent(tenantId, 'alert.triggered', { deviceId: otherDevice });
     expect(receivedCount).toBe(0); // filtered out
-    const logA = await withSystem(db, (tx) => tx.select().from(webhookDeliveries).where(eq(webhookDeliveries.webhookId, hook.id)));
+    const logA = await withSystem(db, 'test-fixture', (tx) => tx.select().from(webhookDeliveries).where(eq(webhookDeliveries.webhookId, hook.id)));
     expect(logA).toHaveLength(0);
 
     await deliverEvent(tenantId, 'alert.triggered', { deviceId: allowedDevice });
     expect(receivedCount).toBe(1); // allowed -> fired
-    const logB = await withSystem(db, (tx) => tx.select().from(webhookDeliveries).where(eq(webhookDeliveries.webhookId, hook.id)));
+    const logB = await withSystem(db, 'test-fixture', (tx) => tx.select().from(webhookDeliveries).where(eq(webhookDeliveries.webhookId, hook.id)));
     expect(logB).toHaveLength(1);
     expect(logB[0]?.status).toBe('sent');
   });

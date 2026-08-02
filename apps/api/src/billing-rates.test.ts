@@ -2,7 +2,7 @@ import { eq, planVersions, plans, tenants, usageCounters, withSystem } from '@tr
 import { describe, expect, it } from 'vitest';
 import { getBilledRate, invalidateRatesCache } from './billing-rates-service.js';
 import { computeOverages, invoiceOverages } from './billing-service.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { invalidatePlanCache } from './plan-service.js';
 import { currentPeriod } from './usage-service.js';
 
@@ -31,7 +31,7 @@ describe.skipIf(!enabled)('billing rates + metered overages', () => {
       .values({ name: 'Over', slug: `over-${stamp}`, plan: plan!.key, planVersionId: ver!.id })
       .returning();
     invalidatePlanCache();
-    await withSystem(db, (tx) => tx.insert(usageCounters).values({ tenantId: tenant!.id, period: currentPeriod(), smsSent: smsUsed }));
+    await withSystem(db, 'test-fixture', (tx) => tx.insert(usageCounters).values({ tenantId: tenant!.id, period: currentPeriod(), smsSent: smsUsed }));
     return {
       tenantId: tenant!.id,
       cleanup: async () => {

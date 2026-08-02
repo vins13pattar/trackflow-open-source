@@ -13,7 +13,7 @@ primary_region = "bom" # Mumbai reference overlay for the India-first data plane
 [env]
   NODE_ENV = "production"
   JOBS_HTTP_PORT = "9101"
-  # DATABASE_URL, notification keys, METRICS_TOKEN, etc. are set as secrets:
+  # SYSTEM_DATABASE_URL, notification keys, METRICS_TOKEN, etc. are set as secrets:
   #   fly secrets set ... -a trackflow-jobs
 
 [[vm]]

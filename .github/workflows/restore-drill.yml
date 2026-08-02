@@ -33,6 +33,7 @@ jobs:
     env:
       ADMIN_DATABASE_URL: postgres://trackflow:trackflow@localhost:5432/trackflow
       DATABASE_URL: postgres://trackflow_app:trackflow_app@localhost:5432/trackflow
+      SYSTEM_DATABASE_URL: postgres://trackflow_system:trackflow_system@localhost:5432/trackflow
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9

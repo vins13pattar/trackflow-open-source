@@ -1,6 +1,6 @@
 import { eq, tenantNotificationSettings, tenants, withSystem } from '@trackflow/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { type DispatchSettings, getDispatchSettings, inQuietHours, suppressedByQuiet, throttleAllow } from './dispatch-rules.js';
 import { MemoryStore } from './middleware/rate-limit-store.js';
 
@@ -100,7 +100,7 @@ describe.skipIf(!enabled)('getDispatchSettings (DB-backed)', () => {
   });
 
   it('reads a persisted settings row', async () => {
-    await withSystem(db, (tx) =>
+    await withSystem(db, 'test-fixture', (tx) =>
       tx.insert(tenantNotificationSettings).values({
         tenantId,
         quietStart: '22:00',

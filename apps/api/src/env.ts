@@ -5,6 +5,11 @@ export const env = {
   // Runtime connects as the non-superuser app role so RLS is enforced.
   databaseUrl:
     process.env.DATABASE_URL ?? 'postgres://trackflow_app:trackflow_app@localhost:5432/trackflow',
+  // Reviewed cross-tenant operations use a separate PostgreSQL identity. The
+  // tenant role above cannot turn RLS off, even if application SQL is altered.
+  systemDatabaseUrl:
+    process.env.SYSTEM_DATABASE_URL ??
+    'postgres://trackflow_system:trackflow_system@localhost:5432/trackflow',
   ingestToken: process.env.INGEST_SINK_TOKEN ?? 'dev-ingest-token-change-me',
   webOrigin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
   // Platform-operator admin API token (plan/rate management). No default: when

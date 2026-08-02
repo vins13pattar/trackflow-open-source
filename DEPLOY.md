@@ -40,18 +40,21 @@ apps/web (Next.js) ──▶ Vercel / Cloudflare Pages
 
 ## 2. Database
 
-The database provider gives an **owner** role (migrations) and you create a **non-superuser
-app role** (runtime — superusers bypass RLS).
+The database provider gives an **owner** role (migrations). Provision separate
+tenant and reviewed-system runtime roles; neither is the owner.
 
 ```bash
 export ADMIN_DATABASE_URL="postgres://owner:***@<postgres-host>/trackflow?sslmode=require"
 pnpm --filter @trackflow/db db:migrate   # apply committed SQL migrations
-pnpm --filter @trackflow/db db:rls        # create trackflow_app role + RLS policies
-# Runtime services use:
+pnpm --filter @trackflow/db db:rls        # create tenant/system roles + RLS policies
+# API tenant queries use:
 export DATABASE_URL="postgres://trackflow_app:***@<postgres-host>/trackflow?sslmode=require"
+# Reviewed API system paths and jobs use:
+export SYSTEM_DATABASE_URL="postgres://trackflow_system:***@<postgres-host>/trackflow?sslmode=require"
 ```
 
-Set `APP_DB_PASSWORD` before `db:rls` to control the runtime role's password.
+Set `APP_DB_PASSWORD` and `SYSTEM_DB_PASSWORD` before `db:rls` to control the
+two runtime credentials. Store and rotate them independently.
 
 ## 3. Environment & secrets
 
@@ -61,6 +64,7 @@ Set per service (see `.env.example`). Secrets go in the host's secret store
 **API** (`apps/api`)
 ```
 DATABASE_URL=                 # app role
+SYSTEM_DATABASE_URL=          # reviewed cross-tenant role
 JWT_ACCESS_SECRET=  JWT_REFRESH_SECRET=   # long random
 INGEST_SINK_TOKEN=            # shared with ingest
 WEB_ORIGIN=https://app.yourdomain.com

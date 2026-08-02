@@ -34,7 +34,7 @@ describe.skipIf(!enabled)('notify-retry job', () => {
   beforeAll(async () => {
     const [t] = await db.insert(tenants).values({ name: 'Retry', slug: `retry-${Math.random().toString(36).slice(2, 10)}` }).returning();
     tenantId = t!.id;
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       const [d] = await tx.insert(devices).values({ tenantId, name: 'Dev', imei: `imei-${Math.random().toString(36).slice(2, 12)}` }).returning();
       deviceId = d!.id;
       const [a] = await tx
@@ -50,7 +50,7 @@ describe.skipIf(!enabled)('notify-retry job', () => {
   });
 
   async function seed(values: { attempt: number; nextRetryAt: Date | null; status?: string }): Promise<string> {
-    const [row] = await withSystem(db, (tx) =>
+    const [row] = await withSystem(db, 'test-fixture', (tx) =>
       tx
         .insert(alertDeliveries)
         .values({
@@ -69,7 +69,7 @@ describe.skipIf(!enabled)('notify-retry job', () => {
     );
     return row!.id;
   }
-  const get = async (id: string) => (await withSystem(db, (tx) => tx.select().from(alertDeliveries).where(eq(alertDeliveries.id, id))))[0]!;
+  const get = async (id: string) => (await withSystem(db, 'test-fixture', (tx) => tx.select().from(alertDeliveries).where(eq(alertDeliveries.id, id))))[0]!;
 
   it('marks a due delivery sent when the retry succeeds', async () => {
     const id = await seed({ attempt: 1, nextRetryAt: past });

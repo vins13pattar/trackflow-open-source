@@ -5,7 +5,7 @@ import { Hono, type MiddlewareHandler } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { dispatchAlerts } from '../alert-dispatch.js';
 import { subscribeAlerts, subscribePositions } from '../bus.js';
-import { db } from '../db.js';
+import { db, systemDb } from '../db.js';
 import { env } from '../env.js';
 import { recordPosition, updateDeviceTelemetry } from '../positions-service.js';
 
@@ -58,7 +58,7 @@ export function evaluateDeviceAdmission(
 
 internalRoutes.post('/devices/admission', async (c) => {
   const request = ingestAdmissionSchema.parse(await c.req.json());
-  const device = await withSystem(db, async (tx) => {
+  const device = await withSystem(systemDb, 'device-command-routing', async (tx) => {
     const [row] = await tx
       .select({ imei: devices.imei, protocol: devices.protocol, status: devices.status })
       .from(devices)
@@ -75,7 +75,7 @@ internalRoutes.post('/positions', async (c) => {
 
   // Trusted system path: the IMEI->tenant lookup is cross-tenant by nature, so
   // it runs with RLS bypassed.
-  const result = await withSystem(db, async (tx) => {
+  const result = await withSystem(systemDb, 'device-command-routing', async (tx) => {
     const [device] = await tx
       .select({ id: devices.id, tenantId: devices.tenantId })
       .from(devices)
@@ -148,7 +148,7 @@ realtimeRoutes.get('/positions', async (c) => {
 internalRoutes.post('/devices/:id/commands/pending', async (c) => {
   const deviceId = c.req.param('id');
   const now = new Date();
-  const rows = await withSystem(db, async (tx) => {
+  const rows = await withSystem(systemDb, 'device-command-routing', async (tx) => {
     // Flag expired commands while we're here so they don't pile up.
     await tx
       .update(deviceCommands)
@@ -169,7 +169,7 @@ internalRoutes.post('/devices/:id/commands/pending', async (c) => {
 internalRoutes.post('/devices/commands/:cmdId/ack', async (c) => {
   const cmdId = c.req.param('cmdId');
   const body = ackDeviceCommandSchema.parse(await c.req.json());
-  const updated = await withSystem(db, async (tx) => {
+  const updated = await withSystem(systemDb, 'device-command-routing', async (tx) => {
     const [row] = await tx
       .update(deviceCommands)
       .set({ status: body.status, response: body.response ?? null, ackedAt: new Date() })

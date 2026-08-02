@@ -29,7 +29,7 @@ import { errors, hashPassword, issueTokens, type Role } from '@trackflow/shared'
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { actorIp, actorUserId, recordAudit } from '../audit-log.js';
-import { db } from '../db.js';
+import { db, systemDb } from '../db.js';
 import { env } from '../env.js';
 import type { AppEnv } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/authorize.js';
@@ -70,7 +70,7 @@ function publicConfig(row: typeof samlConfigs.$inferSelect) {
 
 samlConfigRoutes.get('/', async (c) => {
   const { tenantId } = c.get('principal');
-  const [row] = await withSystem(db, (tx) =>
+  const [row] = await withSystem(systemDb, 'sso-bootstrap', (tx) =>
     tx.select().from(samlConfigs).where(eq(samlConfigs.tenantId, tenantId)),
   );
   if (!row) return c.json({ enabled: false, configured: false });
@@ -85,7 +85,7 @@ samlConfigRoutes.put('/', async (c) => {
   const audience = `${env.webOrigin}/auth/saml/${tenant.slug}/metadata`;
   const acsUrl = `${env.webOrigin}/auth/saml/${tenant.slug}/acs`;
 
-  const row = await withSystem(db, async (tx) => {
+  const row = await withSystem(systemDb, 'sso-bootstrap', async (tx) => {
     const [existing] = await tx.select().from(samlConfigs).where(eq(samlConfigs.tenantId, tenantId));
     if (existing) {
       const [u] = await tx
@@ -137,7 +137,7 @@ samlConfigRoutes.put('/', async (c) => {
 
 samlConfigRoutes.delete('/', async (c) => {
   const { tenantId } = c.get('principal');
-  await withSystem(db, (tx) => tx.delete(samlConfigs).where(eq(samlConfigs.tenantId, tenantId)));
+  await withSystem(systemDb, 'sso-bootstrap', (tx) => tx.delete(samlConfigs).where(eq(samlConfigs.tenantId, tenantId)));
   await recordAudit({
     tenantId,
     actorUserId: actorUserId(c),
@@ -153,7 +153,7 @@ samlConfigRoutes.delete('/', async (c) => {
 async function loadTenantAndConfig(slug: string) {
   const [t] = await db.select({ id: tenants.id, slug: tenants.slug, name: tenants.name }).from(tenants).where(eq(tenants.slug, slug));
   if (!t) return null;
-  const [cfg] = await withSystem(db, (tx) =>
+  const [cfg] = await withSystem(systemDb, 'sso-bootstrap', (tx) =>
     tx.select().from(samlConfigs).where(eq(samlConfigs.tenantId, t.id)),
   );
   if (!cfg || !cfg.enabled) return null;

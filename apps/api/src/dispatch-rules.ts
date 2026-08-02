@@ -1,5 +1,5 @@
 import { and, eq, notificationRoutes, tenantNotificationSettings, withSystem } from '@trackflow/db';
-import { db } from './db.js';
+import { systemDb } from './db.js';
 import { createRateLimitStore, type RateLimitStore } from './middleware/rate-limit-store.js';
 
 export interface DispatchSettings {
@@ -20,7 +20,7 @@ const DEFAULTS: DispatchSettings = {
 
 /** Resolves dispatch settings for a tenant, falling back to platform defaults. */
 export async function getDispatchSettings(tenantId: string): Promise<DispatchSettings> {
-  const [row] = await withSystem(db, (tx) =>
+  const [row] = await withSystem(systemDb, 'notification-delivery', (tx) =>
     tx.select().from(tenantNotificationSettings).where(eq(tenantNotificationSettings.tenantId, tenantId)),
   );
   if (!row) return DEFAULTS;
@@ -83,7 +83,7 @@ export async function throttleAllow(
  *  matching active row exists; otherwise null (caller uses the alert's own
  *  channels). RLS-bypassed (the where-clause already scopes by tenantId). */
 export async function resolveEventChannels(tenantId: string, eventType: string): Promise<string[] | null> {
-  const [row] = await withSystem(db, (tx) =>
+  const [row] = await withSystem(systemDb, 'notification-delivery', (tx) =>
     tx
       .select({ channels: notificationRoutes.channels })
       .from(notificationRoutes)

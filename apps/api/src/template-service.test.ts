@@ -1,6 +1,6 @@
 import { eq, notificationTemplates, tenants, withSystem } from '@trackflow/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { getNotificationContent, resolveTemplate } from './template-service.js';
 
 // Requires a running Postgres with the schema applied. Gated so `pnpm test`
@@ -38,7 +38,7 @@ describe.skipIf(!enabled)('notification templates (resolve + render)', () => {
   });
 
   it('uses a tenant override in preference to the built-in default', async () => {
-    await withSystem(db, (tx) =>
+    await withSystem(db, 'test-fixture', (tx) =>
       tx.insert(notificationTemplates).values({
         tenantId,
         eventType: 'device.offline',
@@ -51,7 +51,7 @@ describe.skipIf(!enabled)('notification templates (resolve + render)', () => {
       const tmpl = await resolveTemplate(tenantId, 'device.offline', 'en');
       expect(tmpl?.subject).toBe('Custom: {{deviceName}} offline');
     } finally {
-      await withSystem(db, (tx) =>
+      await withSystem(db, 'test-fixture', (tx) =>
         tx
           .delete(notificationTemplates)
           .where(eq(notificationTemplates.tenantId, tenantId)),

@@ -2,16 +2,18 @@ name: DB migrate + RLS
 
 # One-click, manual-only runner for the single imperative setup step that
 # dashboard env vars don't cover: applying migrations and provisioning the
-# non-superuser app role + RLS policies against a real (e.g. Neon) database.
+# tenant/system runtime roles + RLS policies against a real database.
 #
 # Configure these repository secrets first (Settings → Secrets and variables →
 # Actions):
 #   ADMIN_DATABASE_URL  - the Neon OWNER role URL (runs migrations + RLS setup)
-#   APP_DB_PASSWORD     - password to set for the runtime app role
-#   DATABASE_URL        - (optional) the non-superuser app-role URL; if set, the
-#                         RLS isolation test runs to PROVE tenant isolation.
+#   APP_DB_PASSWORD     - password to set for the tenant runtime role
+#   SYSTEM_DB_PASSWORD  - password to set for the reviewed system runtime role
+#   DATABASE_URL        - (optional) non-bypass tenant-role URL
+#   SYSTEM_DATABASE_URL - (optional) system-role URL; provide both runtime URLs
+#                         to run the RLS isolation proof.
 # Optional variable:
-#   APP_DB_ROLE         - runtime role name (defaults to trackflow_app)
+#   APP_DB_ROLE / SYSTEM_DB_ROLE - role names (trackflow_app / trackflow_system)
 on:
   workflow_dispatch:
     inputs:
@@ -31,7 +33,10 @@ jobs:
       ADMIN_DATABASE_URL: ${{ secrets.ADMIN_DATABASE_URL }}
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
       APP_DB_ROLE: ${{ vars.APP_DB_ROLE || 'trackflow_app' }}
+      SYSTEM_DB_PASSWORD: ${{ secrets.SYSTEM_DB_PASSWORD }}
+      SYSTEM_DB_ROLE: ${{ vars.SYSTEM_DB_ROLE || 'trackflow_system' }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SYSTEM_DATABASE_URL: ${{ secrets.SYSTEM_DATABASE_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -46,18 +51,21 @@ jobs:
           if [ -z "$ADMIN_DATABASE_URL" ]; then
             echo "::error::ADMIN_DATABASE_URL secret is not set."; exit 1
           fi
+          if [ -z "$APP_DB_PASSWORD" ] || [ -z "$SYSTEM_DB_PASSWORD" ]; then
+            echo "::error::APP_DB_PASSWORD and SYSTEM_DB_PASSWORD secrets are required."; exit 1
+          fi
 
       - name: Apply migrations
         run: pnpm --filter @trackflow/db db:migrate
 
-      - name: Provision app role + RLS policies
+      - name: Provision tenant/system roles + RLS policies
         run: pnpm --filter @trackflow/db db:rls
 
       - name: Verify restore coherence (migrations/RLS/partitioning)
         run: pnpm --filter @trackflow/db db:verify-restore
 
-      - name: Prove tenant isolation (only if the app-role URL is provided)
-        if: ${{ env.DATABASE_URL != '' }}
+      - name: Prove tenant isolation (only if both runtime URLs are provided)
+        if: ${{ env.DATABASE_URL != '' && env.SYSTEM_DATABASE_URL != '' }}
         env:
           TF_DB_TESTS: '1'
         run: pnpm --filter @trackflow/db test

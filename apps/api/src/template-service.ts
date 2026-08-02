@@ -1,5 +1,5 @@
 import { and, eq, notificationTemplates, tenants, withSystem } from '@trackflow/db';
-import { db } from './db.js';
+import { systemDb } from './db.js';
 import { DEFAULT_LOCALE, DEFAULT_TEMPLATES, type TemplateContent } from './template-defaults.js';
 
 export type Vars = Record<string, string | number | undefined>;
@@ -28,7 +28,7 @@ export function render(template: string, vars: Vars): string {
 export async function resolveTemplate(tenantId: string, eventType: string, locale = DEFAULT_LOCALE): Promise<TemplateContent | null> {
   // notification_templates is RLS-scoped by tenant; the where-clause does the
   // scoping here, so withSystem (RLS bypass) is the consistent system-read path.
-  const rows = await withSystem(db, (tx) =>
+  const rows = await withSystem(systemDb, 'notification-delivery', (tx) =>
     tx
       .select({ locale: notificationTemplates.locale, subject: notificationTemplates.subject, body: notificationTemplates.body })
       .from(notificationTemplates)
@@ -59,6 +59,6 @@ export async function getNotificationContent(tenantId: string, eventType: string
 }
 
 async function tenantLocale(tenantId: string): Promise<string> {
-  const [t] = await db.select({ locale: tenants.locale }).from(tenants).where(eq(tenants.id, tenantId));
+  const [t] = await systemDb.select({ locale: tenants.locale }).from(tenants).where(eq(tenants.id, tenantId));
   return t?.locale ?? DEFAULT_LOCALE;
 }

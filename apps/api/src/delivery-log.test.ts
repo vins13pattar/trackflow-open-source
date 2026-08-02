@@ -1,7 +1,7 @@
 import { alertDeliveries, alerts, desc, devices, eq, tenants, withSystem } from '@trackflow/db';
 import type { DeliveryResult } from '@trackflow/notifications';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { recordDeliveries } from './delivery-log.js';
 
 // Requires a running Postgres with the schema applied. Gated so `pnpm test`
@@ -15,7 +15,7 @@ describe.skipIf(!enabled)('delivery log recording', () => {
   beforeAll(async () => {
     const [t] = await db.insert(tenants).values({ name: 'Log', slug: `log-${Math.random().toString(36).slice(2, 10)}` }).returning();
     tenantId = t!.id;
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       const [d] = await tx.insert(devices).values({ tenantId, name: 'Dev', imei: `imei-${Math.random().toString(36).slice(2, 12)}` }).returning();
       const [a] = await tx.insert(alerts).values({ tenantId, deviceId: d!.id, type: 'geofence.enter', severity: 'warning', title: 'T', message: 'B' }).returning();
       alertId = a!.id;
@@ -35,7 +35,7 @@ describe.skipIf(!enabled)('delivery log recording', () => {
     ];
     await recordDeliveries(tenantId, alertId, 'Subject', 'Body', results);
 
-    const rows = await withSystem(db, (tx) =>
+    const rows = await withSystem(db, 'test-fixture', (tx) =>
       tx.select().from(alertDeliveries).where(eq(alertDeliveries.alertId, alertId)).orderBy(desc(alertDeliveries.createdAt)),
     );
     expect(rows).toHaveLength(4);

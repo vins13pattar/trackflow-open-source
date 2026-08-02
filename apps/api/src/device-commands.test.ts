@@ -2,7 +2,7 @@ import { deviceCommands, devices, eq, tenants, withSystem } from '@trackflow/db'
 import { issueTokens } from '@trackflow/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { env } from './env.js';
 
 // Requires a running Postgres with the schema applied. Gated so `pnpm test`
@@ -22,7 +22,7 @@ describe.skipIf(!enabled)('two-way device commands: queue → poll → ack', () 
     // sub must be a uuid because routes persist principal.userId into uuid
     // columns (e.g. deviceCommands.requestedBy, auditLogs.actorUserId).
     token = (await issueTokens({ sub: crypto.randomUUID(), tid: tenantId, role: 'owner' }, env.jwt)).accessToken;
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       const [d] = await tx
         .insert(devices)
         .values({ tenantId, name: 'Bus', imei: `imei-${Math.random().toString(36).slice(2, 12)}` })
@@ -83,7 +83,7 @@ describe.skipIf(!enabled)('two-way device commands: queue → poll → ack', () 
       body: JSON.stringify({ status: 'acked', response: 'lat=12.97,lon=77.59' }),
     });
     expect(ackRes.status).toBe(200);
-    const [row] = await withSystem(db, (tx) => tx.select().from(deviceCommands).where(eq(deviceCommands.id, created.id)));
+    const [row] = await withSystem(db, 'test-fixture', (tx) => tx.select().from(deviceCommands).where(eq(deviceCommands.id, created.id)));
     expect(row?.status).toBe('acked');
     expect(row?.response).toBe('lat=12.97,lon=77.59');
     expect(row?.ackedAt).not.toBeNull();

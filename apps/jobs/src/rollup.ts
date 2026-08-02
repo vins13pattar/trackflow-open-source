@@ -13,13 +13,13 @@ const SINCE_HOURS = Number(process.env.ROLLUP_HOURS ?? 720); // 30 days default 
 
 export async function runRollup(): Promise<void> {
   const since = new Date(Date.now() - SINCE_HOURS * 3600 * 1000);
-  const fleet = await withSystem(db, (tx) =>
+  const fleet = await withSystem(db, 'system-job', (tx) =>
     tx.select({ id: devices.id, tenantId: devices.tenantId, name: devices.name }).from(devices),
   );
 
   let totalTrips = 0;
   for (const d of fleet) {
-    const pts = await withSystem(db, (tx) =>
+    const pts = await withSystem(db, 'system-job', (tx) =>
       tx
         .select({ lat: positions.lat, lon: positions.lon, speedKph: positions.speedKph, fixTime: positions.fixTime })
         .from(positions)
@@ -32,7 +32,7 @@ export async function runRollup(): Promise<void> {
       pts.map((p) => ({ lat: p.lat, lng: p.lon, speedKph: p.speedKph, t: p.fixTime.getTime() })),
     );
 
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'system-job', async (tx) => {
       await tx.delete(trips).where(and(eq(trips.deviceId, d.id), gte(trips.startedAt, since)));
       if (detected.length > 0) {
         await tx

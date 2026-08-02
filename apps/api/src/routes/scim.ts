@@ -42,7 +42,7 @@ import {
 } from '@trackflow/shared';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { recordAudit } from '../audit-log.js';
-import { db } from '../db.js';
+import { db, systemDb } from '../db.js';
 
 export const scimRoutes = new Hono<{
   Variables: { scimTenantId: string };
@@ -73,7 +73,7 @@ const scimAuth: MiddlewareHandler<{ Variables: { scimTenantId: string } }> = asy
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : c.req.header('x-api-key');
   if (!token) return scimError(c, 401, 'Missing bearer token', 'invalidCredentials');
   const { prefix, hash } = await apiKeyParts(token);
-  const row = await withSystem(db, async (tx) => {
+  const row = await withSystem(systemDb, 'sso-bootstrap', async (tx) => {
     const [k] = await tx.select().from(apiKeys).where(eq(apiKeys.prefix, prefix));
     if (!k || k.revokedAt || k.keyHash !== hash) return null;
     await tx.update(apiKeys).set({ lastUsedAt: sql`now()` }).where(eq(apiKeys.id, k.id));

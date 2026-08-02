@@ -1,7 +1,7 @@
 import { alerts, devices, eq, geofences, inArray, pushTokens, withSystem } from '@trackflow/db';
 import { type ChannelName, type Recipients, dispatch } from '@trackflow/notifications';
 import { type AlertEvent, publishAlert } from './bus.js';
-import { db } from './db.js';
+import { db, systemDb } from './db.js';
 import { recordDeliveries } from './delivery-log.js';
 import { getDispatchSettings, resolveEventChannels, suppressedByQuiet, throttleAllow } from './dispatch-rules.js';
 import type { FiredAlert } from './geofence-service.js';
@@ -23,7 +23,7 @@ async function loadDispatchVars(fired: FiredAlert[]): Promise<{
 }> {
   const deviceIds = [...new Set(fired.map((a) => a.deviceId))];
   const geofenceIds = [...new Set(fired.map((a) => a.geofenceId).filter((id): id is string => !!id))];
-  const [deviceRows, geofenceRows] = await withSystem(db, async (tx) => {
+  const [deviceRows, geofenceRows] = await withSystem(systemDb, 'notification-delivery', async (tx) => {
     const d = deviceIds.length > 0
       ? await tx.select({ id: devices.id, name: devices.name }).from(devices).where(inArray(devices.id, deviceIds))
       : [];
@@ -86,7 +86,7 @@ export async function dispatchAlerts(tenantId: string, fired: FiredAlert[]): Pro
     // For the push channel, fan out to the tenant's registered device tokens.
     let recipients: Recipients = a.recipients;
     if (channelsForEvent.includes('push' as ChannelName)) {
-      const rows = await withSystem(db, (tx) =>
+      const rows = await withSystem(systemDb, 'notification-delivery', (tx) =>
         tx.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.tenantId, tenantId)),
       );
       recipients = { ...a.recipients, pushTokens: rows.map((r) => r.token) };
@@ -115,7 +115,7 @@ export async function dispatchAlerts(tenantId: string, fired: FiredAlert[]): Pro
     }
 
     try {
-      await withSystem(db, (tx) => tx.update(alerts).set({ notifications: results }).where(eq(alerts.id, a.id)));
+      await withSystem(systemDb, 'notification-delivery', (tx) => tx.update(alerts).set({ notifications: results }).where(eq(alerts.id, a.id)));
       // Per-attempt delivery log (powers the UI log + the retry job). Records
       // the rendered title/body, so retries replay what we actually tried to send.
       await recordDeliveries(tenantId, a.id, title, body, results);

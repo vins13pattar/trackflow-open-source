@@ -120,8 +120,10 @@ flowchart TD
   RLS --> DATA[("tenant-scoped rows")]
 ```
 
-- Migrations run as the DB **owner** (`ADMIN_DATABASE_URL`); the app connects as a
-  **non-superuser** role (`DATABASE_URL`) because superusers bypass RLS.
+- Migrations run as the DB **owner** (`ADMIN_DATABASE_URL`). Tenant queries use
+  the `NOSUPERUSER NOBYPASSRLS` identity (`DATABASE_URL`); enumerated
+  cross-tenant paths use a separate `SYSTEM_DATABASE_URL` identity and are
+  reviewed in `docs/SYSTEM_ACCESS_INVENTORY.md`.
 - Audit log, quotas and plan limits are enforced per tenant; privacy routes provide
   DPDP/GDPR export and workspace hard-delete.
 

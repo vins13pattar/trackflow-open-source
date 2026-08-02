@@ -7,7 +7,7 @@ import { sql, withSystem } from '@trackflow/db';
 import { db } from './db.js';
 
 export async function rebuildDailyRollups(windowStart: Date): Promise<void> {
-  await withSystem(db, (tx) =>
+  await withSystem(db, 'system-job', (tx) =>
     tx.execute(sql`
       INSERT INTO daily_rollups
         (tenant_id, device_id, day, trips, distance_km, duration_s, max_speed_kph, speeding_samples, point_count, updated_at)

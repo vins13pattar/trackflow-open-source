@@ -1,6 +1,6 @@
 import { alerts, and, devices, eq, lt, sql, withSystem } from '@trackflow/db';
 import { type AlertEvent, publishAlert } from './bus.js';
-import { db } from './db.js';
+import { systemDb } from './db.js';
 import { deliverEvent } from './webhook-service.js';
 
 const OFFLINE_THRESHOLD_MS = Number(process.env.OFFLINE_THRESHOLD_MS ?? 5 * 60 * 1000);
@@ -17,7 +17,7 @@ export async function emitDeviceEvent(
   const message = `${deviceName} is ${online ? 'back online' : 'offline (no data)'}`;
   const severity = online ? 'low' : 'high';
 
-  const [row] = await withSystem(db, (tx) =>
+  const [row] = await withSystem(systemDb, 'device-status', (tx) =>
     tx.insert(alerts).values({ tenantId, deviceId, type, severity, title, message }).returning({ id: alerts.id, createdAt: alerts.createdAt }),
   );
   const event: AlertEvent = {
@@ -39,14 +39,14 @@ export async function emitDeviceEvent(
 /** Flips devices that stopped reporting to offline and fires device.offline. */
 export async function sweepOffline(thresholdMs = OFFLINE_THRESHOLD_MS): Promise<void> {
   const cutoff = new Date(Date.now() - thresholdMs);
-  const stale = await withSystem(db, (tx) =>
+  const stale = await withSystem(systemDb, 'device-status', (tx) =>
     tx
       .select({ id: devices.id, tenantId: devices.tenantId, name: devices.name })
       .from(devices)
       .where(and(eq(devices.online, true), lt(devices.lastSeen, cutoff))),
   );
   for (const d of stale) {
-    await withSystem(db, (tx) => tx.update(devices).set({ online: false }).where(eq(devices.id, d.id)));
+    await withSystem(systemDb, 'device-status', (tx) => tx.update(devices).set({ online: false }).where(eq(devices.id, d.id)));
     await emitDeviceEvent(d.tenantId, d.id, d.name, false);
   }
 }

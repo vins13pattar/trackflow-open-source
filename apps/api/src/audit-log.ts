@@ -1,6 +1,6 @@
 import { auditLogs, withSystem } from '@trackflow/db';
 import type { Context } from 'hono';
-import { db } from './db.js';
+import { systemDb } from './db.js';
 import type { AppEnv } from './middleware/auth.js';
 
 export interface AuditArgs {
@@ -17,7 +17,7 @@ export interface AuditArgs {
  *  poison the caller's request. */
 export async function recordAudit(args: AuditArgs): Promise<void> {
   try {
-    await withSystem(db, (tx) =>
+    await withSystem(systemDb, 'audit-write', (tx) =>
       tx.insert(auditLogs).values({
         tenantId: args.tenantId,
         actorUserId: args.actorUserId ?? null,
