@@ -98,3 +98,46 @@ buffers with zero reads, and applied the RLS tenant filter. The artifact also
 records `FORCE RLS`, role attributes, all partitions, indexes, the policy, and
 executable security-definer retention functions. Cleanup left zero fixture
 tenants.
+
+## Realtime fan-out and bounded SSE mailboxes
+
+The realtime harness creates two API bus replicas over real local Redis and
+attaches synthetic clients to the same production fan-out and bounded-mailbox
+classes used by SSE. It measures every event-to-consumer latency, loss,
+duplicates, reconnect-to-first-event latency, cross-tenant delivery, slow-client
+overflow isolation, and Redis subscription cleanup. Neither the TCP ingest nor a
+hosted service is used.
+
+```bash
+REALTIME_CLIENTS=50 REALTIME_INITIAL_EVENTS=200 \
+  REALTIME_RECONNECT_CLIENTS=10 REALTIME_RECONNECT_CYCLES=3 \
+  REALTIME_RECOVERY_EVENTS=10 REALTIME_SLOW_BURST=320 \
+  OUTPUT=benchmarks/results/realtime-local.json \
+  pnpm benchmark:realtime:local
+```
+
+Optional regression controls are `REALTIME_P95_BUDGET_MS` and
+`REALTIME_MAX_LOSS`. `REALTIME_SLOW_BURST` must exceed the production mailbox
+capacity (256 by default), because the expected result is that only the stalled
+client disconnects on event 257 while healthy clients continue without loss.
+This is local synthetic Redis evidence, not hosted proxy, browser, Redis
+failover, or multi-region evidence.
+
+The 2026-08-02 local artifact is
+[`results/realtime-local-2026-08-02.json`](results/realtime-local-2026-08-02.json):
+
+| Measurement | Result |
+|---|---:|
+| Published events | 553 |
+| Healthy client deliveries | 27,620 / 27,620 |
+| Delivery p50 / p95 / p99 | 0.179 / 0.384 / 0.834 ms |
+| Missing / duplicate deliveries | 0 / 0 |
+| Reconnect-to-first-event p95 | 0.274 ms (30 samples) |
+| Slow-client overflow | disconnected on event 257 |
+| Healthy loss during slow-client pressure | 0 |
+| Cross-tenant deliveries | 0 |
+| Redis subscribers before / active / after | 0 / 2 / 0 |
+
+The generator used Node 24 on a 10-core Apple arm64 host with 24 GiB memory.
+The regression failure path was also exercised with an impossible p95 budget;
+it exited non-zero after restoring Redis subscriptions to the baseline.

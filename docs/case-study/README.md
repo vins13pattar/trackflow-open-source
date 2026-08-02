@@ -299,14 +299,18 @@ read replicas, and archival tiering.
 - The dependency and test-vector remediations were merged in PR #7, the
   standalone mobile advisory was resolved in PR #9, and merged-main Security
   run `30430688995` is green. This closes the public workflow evidence gap.
-- The bounded API load gate is useful regression evidence, but authenticated
-  API, PostgreSQL, SSE, and domain p50/p95/p99 capacity results are absent.
+- Authenticated API, PostgreSQL RLS/query-plan, and two-replica local Redis/SSE
+  results are versioned with raw samples and CI budgets. They are bounded
+  synthetic development evidence; domain workflow and production-shaped
+  hosted capacity results remain absent.
 - Multiple API/ingest replicas and three infrastructure failure recoveries have
   not been exercised.
 - The RLS suite now checks the tenant/system identity split and inventories
   privileged paths; hosted credential provisioning is still unverified.
 - Redis-backed SSE fan-out and holder-targeted command wake-up are locally
-  verified through real Redis, but are not hosted multi-replica evidence.
+  verified through real Redis. The quantitative local SSE run delivered
+  27,620/27,620 healthy events with zero loss or duplicates, but it is not
+  hosted proxy, browser-network, failover, or production multi-replica evidence.
 - The 10,000-device manual gate remains unverified.
 - The local restore is not provider PITR or regional recovery.
 - A recorded demo remains pending; the browser-verified screenshots and

@@ -46,7 +46,7 @@ export interface RealtimeBroker {
   subscribe(onMessage: (message: string) => void): Promise<() => Promise<void>>;
 }
 
-const REDIS_CHANNEL = 'trackflow:realtime:v1';
+export const REALTIME_REDIS_CHANNEL = 'trackflow:realtime:v1';
 
 /** Provider-neutral Redis pub/sub adapter. A duplicate connection is required
  * because a subscribed Redis connection cannot also issue regular commands. */
@@ -54,17 +54,17 @@ export class RedisRealtimeBroker implements RealtimeBroker {
   constructor(private readonly url: string) {}
 
   async publish(message: string): Promise<void> {
-    await (await redisClient(this.url)).publish(REDIS_CHANNEL, message);
+    await (await redisClient(this.url)).publish(REALTIME_REDIS_CHANNEL, message);
   }
 
   async subscribe(onMessage: (message: string) => void): Promise<() => Promise<void>> {
     const subscriber = (await redisClient(this.url)).duplicate() as RedisClientType;
     subscriber.on('error', (error) => console.error('[realtime] subscriber error', error));
     await subscriber.connect();
-    await subscriber.subscribe(REDIS_CHANNEL, onMessage);
+    await subscriber.subscribe(REALTIME_REDIS_CHANNEL, onMessage);
     return async () => {
       if (subscriber.isOpen) {
-        await subscriber.unsubscribe(REDIS_CHANNEL);
+        await subscriber.unsubscribe(REALTIME_REDIS_CHANNEL);
         await subscriber.quit();
       }
     };

@@ -11,7 +11,7 @@ means useful implementation exists but the requested proof is incomplete.
 | TCP benchmark | Complete at baseline tier | Versioned before/after JSON and generated report for 1,000 sockets | Run on controlled Linux hardware and add a reconnect-storm time series |
 | API benchmark | Partial | Authenticated tenant read/write harness publishes p50/p95/p99, throughput, errors, raw samples, cleanup status, and CI regression budgets | Add production-shaped datasets, explicit RLS-overhead comparison, hosted pooler/network, and multi-replica runs |
 | PostgreSQL benchmark | Partial | Synthetic two-tenant history harness records RLS/system/noisy-neighbour percentiles, full `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, partition/index/policy/role inventory, retention-function grants, cleanup, and CI budgets | Add production-shaped cardinality, large-partition pruning/retention timing, hosted pooler/IOPS, and replica evidence |
-| SSE benchmark | Partial | Redis fan-out, source-echo suppression, tenant filtering, per-client bounded queues, slow-consumer isolation, and real-Redis CI coverage shipped in PR #26 | Publish concurrent-client/reconnect/loss percentiles and hosted multi-replica recovery evidence |
+| SSE benchmark | Partial | Versioned local two-replica/real-Redis artifact records 27,620/27,620 healthy deliveries, p95 0.384 ms, reconnect p95 0.274 ms, zero loss/duplicates/cross-tenant delivery, slow-client overflow at 257, and subscriber cleanup; CI regression budget included | Publish hosted proxy, browser-network, Redis-failover, and multi-replica recovery evidence |
 | Domain benchmark | Not complete | Unit coverage for geofence, alerts, reports and notifications | Measure throughput, latency and backlog recovery |
 | Backpressure | Partial, ingest slice complete | Bounded per-device/global queue, concurrency, timeout, retry/backoff, shedding and drain tests | Apply explicit budgets to database pools, SSE clients, notifications and reconnect/IP admission |
 | High availability | Partial | Health endpoints and graceful ingest shutdown/drain | Exercise 2+ API replicas, multiple ingest instances and at least three infrastructure failure scenarios |
@@ -29,14 +29,14 @@ means useful implementation exists but the requested proof is incomplete.
 
 ## Priority order
 
-1. Deploy the isolated India synthetic staging slice tracked in issue #10
-   without publishing raw tracker ports.
-2. Add API/PostgreSQL/SSE benchmark harnesses before making full-platform
-   capacity claims.
-3. Exercise Redis, PostgreSQL, and process interruption across multiple API
-   replicas.
-4. Expand RLS verification across every public and background execution path.
-5. Run the 10,000-device manual gate on controlled infrastructure.
+1. Measure domain workflow throughput and backlog recovery without external
+   notification side effects.
+2. Expand RLS verification across every public and background execution path.
+3. Automate the existing synthetic browser journey and accessibility checks.
+4. When infrastructure work resumes, deploy the isolated India synthetic
+   staging slice without publishing raw tracker ports.
+5. Then exercise hosted Redis/PostgreSQL/process interruption and run the
+   10,000-device gate on controlled infrastructure.
 
 See [Production readiness](../PRODUCTION_READINESS.md) for the complete tracked
 P0/P1/P2 backlog.
