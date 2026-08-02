@@ -28,7 +28,7 @@ flowchart LR
     SINK["POST /internal/positions<br/>(x-ingest-token)"]
     PSVC["positions-service<br/>recordPosition()"]
     GEO["geofence-service"]
-    BUS["in-process bus<br/>pub/sub fan-out"]
+    BUS["realtime bus<br/>local + Redis pub/sub fan-out"]
     ROUTES["REST + GraphQL + OpenAPI /docs<br/>auth · MFA · SAML/SCIM · devices<br/>groups · vehicles · geofences · alerts<br/>analytics · billing · webhooks · branding<br/>API keys · privacy export/delete · admin"]
     SSE["GET /positions/stream<br/>(SSE)"]
     AMET["/metrics (Prometheus)"]
@@ -62,11 +62,12 @@ flowchart LR
   PSVC -- "insert position,<br/>update device" --> PG
   GEO -- "fired alerts" --> NOTIF
   PSVC --> BUS
+  BUS <--> REDIS
   BUS --> SSE
   SSE -- "positions + alerts (SSE)" --> UI
   UI -- "REST (JWT / API key)" --> ROUTES
   ROUTES --> PG
-  ROUTES -- "presence lookup" --> REDIS
+  ROUTES -- "presence + command wake-up" --> REDIS
   JOBS --> PG
   JOBS -- "archive CSV/PDF" --> R2
   JOBS --> NOTIF
@@ -87,6 +88,7 @@ sequenceDiagram
   participant I as apps/ingest
   participant A as apps/api
   participant P as Postgres (RLS)
+  participant R as Redis pub/sub
   participant W as Dashboard (web)
 
   D->>I: TCP frame (e.g. GT06 login + location)
@@ -99,7 +101,8 @@ sequenceDiagram
   A->>P: recordPosition(): resolve device→tenant,<br/>insert into partitioned positions,<br/>update device last_seen/telemetry
   A->>A: evaluateGeofences() → entry/exit alerts
   A->>A: dispatch alerts (notifications + webhooks)
-  A->>A: publishPosition() on in-process bus
+  A->>R: publish tenant-scoped position on Redis pub/sub
+  R-->>A: validated event reaches every API replica
   A-->>W: SSE event: position / alert
   W->>W: MapLibre marker moves (clustered ≥1k),<br/>trail playback updates
 ```

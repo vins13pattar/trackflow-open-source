@@ -65,13 +65,18 @@ describe.skipIf(!enabled)('two-way device commands: queue → poll → ack', () 
     const pollRes = await app.request(`/internal/devices/${deviceId}/commands/pending`, {
       method: 'POST',
       headers: ingestHeaders(),
+      body: JSON.stringify({ supportedCommands: ['request_location'] }),
     });
     expect(pollRes.status).toBe(200);
     const polled = (await pollRes.json()) as { commands: Array<{ id: string; command: string }> };
     expect(polled.commands.some((cmd) => cmd.id === created.id)).toBe(true);
 
     // Re-polling drains nothing — they're now 'sent' not 'queued'.
-    const rePoll = (await (await app.request(`/internal/devices/${deviceId}/commands/pending`, { method: 'POST', headers: ingestHeaders() })).json()) as {
+    const rePoll = (await (await app.request(`/internal/devices/${deviceId}/commands/pending`, {
+      method: 'POST',
+      headers: ingestHeaders(),
+      body: JSON.stringify({ supportedCommands: ['request_location'] }),
+    })).json()) as {
       commands: unknown[];
     };
     expect(rePoll.commands).toHaveLength(0);

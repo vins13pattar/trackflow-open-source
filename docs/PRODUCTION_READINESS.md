@@ -1,6 +1,6 @@
 # TrackFlow production readiness
 
-Last reconciled: 2026-07-29.
+Last reconciled: 2026-08-02.
 
 TrackFlow's code, dependency, secret-scan, SAST, SBOM, database, test, build,
 mobile, and baseline load gates are green on `main`. That evidence supports
@@ -25,6 +25,11 @@ is ready for real tenant, vehicle, or location data.
   merged authenticated ingest, portability, and reproducible case-study work.
 - PR [#9](https://github.com/vins13pattar/trackflow-open-source/pull/9)
   cleared the standalone mobile dependency advisory.
+- PR [#24](https://github.com/vins13pattar/trackflow-open-source/pull/24)
+  moved repository actions to immutable Node 24 releases without weakening gates.
+- PR [#25](https://github.com/vins13pattar/trackflow-open-source/pull/25)
+  separated tenant and reviewed-system PostgreSQL identities and added a checked
+  privileged-path inventory.
 - Merged-main
   [Security run 30430688995](https://github.com/vins13pattar/trackflow-open-source/actions/runs/30430688995)
   passed dependency audit, Gitleaks, Semgrep, and SBOM generation.
@@ -51,7 +56,7 @@ workloads, not production guarantees.
 ### P1 — resilience and scale proof
 
 - [#16 Prove multi-replica recovery and durable ingest handoff](https://github.com/vins13pattar/trackflow-open-source/issues/16)
-- [#17 Expand tenant-isolation and privileged-path verification](https://github.com/vins13pattar/trackflow-open-source/issues/17)
+- [#17 Expand tenant-isolation and privileged-path verification](https://github.com/vins13pattar/trackflow-open-source/issues/17) — repository controls complete in PR #25; live identity provisioning remains part of deployment
 - [#18 Publish full-platform capacity evidence](https://github.com/vins13pattar/trackflow-open-source/issues/18)
 - [#19 Implement shared realtime fan-out and immediate command routing](https://github.com/vins13pattar/trackflow-open-source/issues/19)
 
@@ -66,8 +71,8 @@ The first hosted environment is intentionally a control-plane staging slice:
 
 1. Create new India-region application, PostgreSQL, Redis, storage, logging,
    and backup resources with names distinct from production.
-2. Apply migrations and RLS with the owner role, then run the application as
-   the non-superuser `trackflow_app` role.
+2. Apply migrations and RLS with the owner role, then run tenant queries as
+   `trackflow_app` and reviewed cross-tenant paths as `trackflow_system`.
 3. Load only deterministic synthetic records.
 4. Deploy the API and web application and verify health plus an authenticated
    synthetic browser journey.

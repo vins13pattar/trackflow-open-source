@@ -106,6 +106,7 @@ describe('StandardRedisStore', () => {
 describe('getSessionStore', () => {
   const originalUrl = process.env.INGEST_REDIS_URL;
   const originalToken = process.env.INGEST_REDIS_TOKEN;
+  const originalStandardUrl = process.env.REDIS_URL;
 
   beforeEach(() => {
     __resetSessionStore();
@@ -115,12 +116,15 @@ describe('getSessionStore', () => {
     else process.env.INGEST_REDIS_URL = originalUrl;
     if (originalToken === undefined) delete process.env.INGEST_REDIS_TOKEN;
     else process.env.INGEST_REDIS_TOKEN = originalToken;
+    if (originalStandardUrl === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = originalStandardUrl;
     __resetSessionStore();
   });
 
   it('falls back to in-memory when env is unset', () => {
     delete process.env.INGEST_REDIS_URL;
     delete process.env.INGEST_REDIS_TOKEN;
+    delete process.env.REDIS_URL;
     const s = getSessionStore();
     expect(s).toBeInstanceOf(InMemorySessionStore);
   });
@@ -128,6 +132,7 @@ describe('getSessionStore', () => {
   it('uses Upstash when env is set', () => {
     process.env.INGEST_REDIS_URL = 'https://x.upstash.io';
     process.env.INGEST_REDIS_TOKEN = 'TOKEN';
+    delete process.env.REDIS_URL;
     const s = getSessionStore();
     expect(s).toBeInstanceOf(UpstashRedisStore);
   });

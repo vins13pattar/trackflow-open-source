@@ -18,3 +18,10 @@ export async function redisClient(url: string): Promise<RedisClientType> {
     throw error;
   }
 }
+
+export async function closeRedisClient(): Promise<void> {
+  const current = client;
+  client = null;
+  connecting = null;
+  if (current?.isOpen) await current.quit();
+}

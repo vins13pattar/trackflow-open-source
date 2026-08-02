@@ -303,8 +303,10 @@ read replicas, and archival tiering.
   API, PostgreSQL, SSE, and domain p50/p95/p99 capacity results are absent.
 - Multiple API/ingest replicas and three infrastructure failure recoveries have
   not been exercised.
-- The RLS suite does not yet cover every important public/background path.
-- In-process SSE fan-out is best effort and not multi-replica evidence.
+- The RLS suite now checks the tenant/system identity split and inventories
+  privileged paths; hosted credential provisioning is still unverified.
+- Redis-backed SSE fan-out and holder-targeted command wake-up are locally
+  verified through real Redis, but are not hosted multi-replica evidence.
 - The 10,000-device manual gate remains unverified.
 - The local restore is not provider PITR or regional recovery.
 - A recorded demo remains pending; the browser-verified screenshots and

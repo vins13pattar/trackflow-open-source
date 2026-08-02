@@ -7,10 +7,12 @@ export interface AdmissionRequest {
   authenticatedImei?: string;
 }
 
-export interface AdmissionDecision {
-  allowed: boolean;
-  reason: 'allowed' | 'unknown_imei' | 'inactive' | 'protocol_mismatch' | 'identity_mismatch' | 'development_forbidden';
-}
+export type AdmissionDecision =
+  | { allowed: true; reason: 'allowed'; deviceId: string }
+  | {
+      allowed: false;
+      reason: 'unknown_imei' | 'inactive' | 'protocol_mismatch' | 'identity_mismatch' | 'development_forbidden';
+    };
 
 interface CacheEntry {
   decision: AdmissionDecision;
@@ -59,7 +61,11 @@ export class AdmissionClient {
         !['allowed', 'unknown_imei', 'inactive', 'protocol_mismatch', 'identity_mismatch', 'development_forbidden'].includes(
           decision.reason,
         ) ||
-        decision.allowed !== (decision.reason === 'allowed')
+        decision.allowed !== (decision.reason === 'allowed') ||
+        (decision.allowed &&
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            decision.deviceId,
+          ))
       ) {
         throw new Error('Admission service returned an invalid response');
       }

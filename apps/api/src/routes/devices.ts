@@ -7,11 +7,13 @@ import {
   errors,
   queueDeviceCommandSchema,
   reportPositionSchema,
+  supportsImmediateDeviceCommand,
   updateDeviceSchema,
 } from '@trackflow/shared';
 import { Hono } from 'hono';
 import { dispatchAlerts } from '../alert-dispatch.js';
 import { assertDeviceQuota } from '../billing-service.js';
+import { requestCommandWakeup } from '../command-router.js';
 import { db } from '../db.js';
 import type { AppEnv } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/authorize.js';
@@ -238,13 +240,16 @@ deviceRoutes.post('/:id/commands', requirePermission('devices:write'), async (c)
   const body = queueDeviceCommandSchema.parse(await c.req.json());
   const expiresAt = body.expiresInSeconds ? new Date(Date.now() + body.expiresInSeconds * 1000) : null;
   const result = await withTenant(db, tenantId, async (tx) => {
-    const [d] = await tx.select({ id: devices.id, imei: devices.imei }).from(devices).where(eq(devices.id, deviceId));
+    const [d] = await tx
+      .select({ id: devices.id, imei: devices.imei, protocol: devices.protocol })
+      .from(devices)
+      .where(eq(devices.id, deviceId));
     if (!d) return null;
     const [cmd] = await tx
       .insert(deviceCommands)
       .values({ tenantId, deviceId, command: body.command, parameters: body.parameters ?? {}, requestedBy: userId ?? null, expiresAt })
       .returning();
-    return { cmd: cmd!, imei: d.imei };
+    return { cmd: cmd!, imei: d.imei, protocol: d.protocol };
   });
   if (!result) throw errors.notFound('Device not found');
   // Advisory: if a shared presence registry is configured, tell the caller
@@ -252,8 +257,21 @@ deviceRoutes.post('/:id/commands', requirePermission('devices:write'), async (c)
   // wait for its next reconnect. Null = presence not authoritative (single
   // instance) — the command still queues and drains on connect either way.
   const presence = await lookupPresence(result.imei);
+  const immediateRequested =
+    !!presence &&
+    supportsImmediateDeviceCommand(result.protocol, result.cmd.command) &&
+    (await requestCommandWakeup({
+      version: 1,
+      instanceId: presence.instanceId,
+      imei: result.imei,
+      deviceId,
+      commandId: result.cmd.id,
+    }));
   return c.json(
-    { ...toCommand(result.cmd), delivery: { connected: !!presence, instanceId: presence?.instanceId ?? null } },
+    {
+      ...toCommand(result.cmd),
+      delivery: { connected: !!presence, instanceId: presence?.instanceId ?? null, immediateRequested },
+    },
     201,
   );
 });

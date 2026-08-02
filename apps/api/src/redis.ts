@@ -19,3 +19,11 @@ export async function redisClient(url: string): Promise<RedisClientType> {
     throw error;
   }
 }
+
+/** Closes the lazy client during tests or graceful process shutdown. */
+export async function closeRedisClient(): Promise<void> {
+  const current = client;
+  client = null;
+  connecting = null;
+  if (current?.isOpen) await current.quit();
+}
