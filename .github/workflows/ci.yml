@@ -98,6 +98,24 @@ jobs:
           name: postgresql-benchmark
           path: benchmarks/results/ci-db.json
           retention-days: 30
+      - name: Realtime fan-out and SSE mailbox benchmark
+        env:
+          REALTIME_CLIENTS: '20'
+          REALTIME_INITIAL_EVENTS: '50'
+          REALTIME_RECONNECT_CLIENTS: '5'
+          REALTIME_RECONNECT_CYCLES: '2'
+          REALTIME_RECOVERY_EVENTS: '5'
+          REALTIME_SLOW_BURST: '300'
+          REALTIME_P95_BUDGET_MS: '300'
+          REALTIME_MAX_LOSS: '0'
+          OUTPUT: benchmarks/results/ci-realtime.json
+        run: pnpm benchmark:realtime:local
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: realtime-benchmark
+          path: benchmarks/results/ci-realtime.json
+          retention-days: 30
 
   mobile-test:
     runs-on: ubuntu-latest

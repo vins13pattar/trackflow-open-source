@@ -33,6 +33,15 @@ is ready for real tenant, vehicle, or location data.
 - PR [#26](https://github.com/vins13pattar/trackflow-open-source/pull/26)
   added provider-neutral Redis realtime fan-out, bounded SSE mailboxes, and
   durable safe-command wake-up/routing with real-Redis CI coverage.
+- PR [#27](https://github.com/vins13pattar/trackflow-open-source/pull/27)
+  fixed mobile navigation and device-list usability found during synthetic
+  desktop/mobile browser acceptance.
+- PR [#28](https://github.com/vins13pattar/trackflow-open-source/pull/28)
+  added authenticated API read/write percentiles, raw samples, cleanup checks,
+  and CI regression budgets.
+- PR [#29](https://github.com/vins13pattar/trackflow-open-source/pull/29)
+  added PostgreSQL RLS/system/noisy-neighbour measurements, query plans,
+  partition/policy/role evidence, cleanup checks, and CI budgets.
 - The [local product acceptance record](LOCAL_ACCEPTANCE.md) covers a synthetic
   tenant registration, device creation, connection guide, and corrected
   desktop/mobile layouts without starting ingest.
