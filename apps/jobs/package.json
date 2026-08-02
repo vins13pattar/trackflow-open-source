@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "benchmark:domain:local": "tsx scripts/benchmark-domain.ts",
     "rollup": "tsx src/rollup.ts",
     "report": "tsx src/report.ts",
     "retention": "tsx src/retention.ts",

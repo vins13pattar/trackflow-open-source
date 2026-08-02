@@ -24,6 +24,9 @@ gaps.
 - The local real-Redis realtime run delivered 27,620/27,620 healthy events with
   zero loss, duplicates, or cross-tenant delivery; the stalled mailbox was
   isolated at its 257th event and all Redis subscribers were cleaned up.
+- The local domain run created 500/500 geofence alerts, recovered a 500-item
+  injected-channel notification backlog exactly once, rolled 1,000 trips into
+  250/250 daily rows, and rendered deterministic CSV/PDF reports.
 - Local production dependency audit reports zero known vulnerabilities.
 
 ## Approval gates
