@@ -1,6 +1,6 @@
 import { alertDeliveries, withSystem } from '@trackflow/db';
 import type { DeliveryResult } from '@trackflow/notifications';
-import { db } from './db.js';
+import { systemDb } from './db.js';
 
 /** Channels worth retrying on failure (console is local; skips/suppressions are terminal). */
 export const RETRYABLE_CHANNELS: ReadonlySet<string> = new Set(['email', 'sms', 'whatsapp', 'webhook', 'push']);
@@ -41,5 +41,5 @@ export async function recordDeliveries(
     error: r.error ?? null,
     nextRetryAt: isRetryable(r) ? backoffFrom(1) : null,
   }));
-  await withSystem(db, (tx) => tx.insert(alertDeliveries).values(rows));
+  await withSystem(systemDb, 'notification-delivery', (tx) => tx.insert(alertDeliveries).values(rows));
 }

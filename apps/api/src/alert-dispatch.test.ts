@@ -1,7 +1,7 @@
 import { alertDeliveries, alerts, devices, eq, notificationRoutes, notificationTemplates, tenants, withSystem } from '@trackflow/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { dispatchAlerts } from './alert-dispatch.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import type { FiredAlert } from './geofence-service.js';
 
 // Requires a running Postgres with the schema applied. Gated so `pnpm test`
@@ -15,7 +15,7 @@ describe.skipIf(!enabled)('dispatchAlerts: template rendering + per-event routin
   beforeAll(async () => {
     const [t] = await db.insert(tenants).values({ name: 'Disp', slug: `disp-${Math.random().toString(36).slice(2, 10)}` }).returning();
     tenantId = t!.id;
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       const [d] = await tx
         .insert(devices)
         .values({ tenantId, name: 'Bus-Disp', imei: `imei-${Math.random().toString(36).slice(2, 12)}` })
@@ -29,7 +29,7 @@ describe.skipIf(!enabled)('dispatchAlerts: template rendering + per-event routin
   });
 
   async function makeAlert(overrides: Partial<FiredAlert> = {}): Promise<FiredAlert> {
-    const [a] = await withSystem(db, (tx) =>
+    const [a] = await withSystem(db, 'test-fixture', (tx) =>
       tx
         .insert(alerts)
         .values({
@@ -63,7 +63,7 @@ describe.skipIf(!enabled)('dispatchAlerts: template rendering + per-event routin
 
   it('renders the tenant template (overriding the pre-rendered alert text)', async () => {
     // Tenant override for 'device.offline' that substitutes the device name.
-    await withSystem(db, (tx) =>
+    await withSystem(db, 'test-fixture', (tx) =>
       tx.insert(notificationTemplates).values({
         tenantId,
         eventType: 'device.offline',
@@ -76,7 +76,7 @@ describe.skipIf(!enabled)('dispatchAlerts: template rendering + per-event routin
     const a = await makeAlert({ type: 'device.offline', channels: ['console'] });
     await dispatchAlerts(tenantId, [a]);
 
-    const log = await withSystem(db, (tx) =>
+    const log = await withSystem(db, 'test-fixture', (tx) =>
       tx.select().from(alertDeliveries).where(eq(alertDeliveries.alertId, a.id)),
     );
     // The delivery row records the rendered subject/body (what we tried to send).
@@ -87,14 +87,14 @@ describe.skipIf(!enabled)('dispatchAlerts: template rendering + per-event routin
   it('per-event route overrides the alert\'s channels', async () => {
     // Route geofence.enter via only the 'console' channel even though the alert
     // is configured with [sms].
-    await withSystem(db, (tx) =>
+    await withSystem(db, 'test-fixture', (tx) =>
       tx.insert(notificationRoutes).values({ tenantId, eventType: 'geofence.enter', channels: ['console'] }),
     );
 
     const a = await makeAlert({ type: 'geofence.enter', channels: ['sms'] });
     await dispatchAlerts(tenantId, [a]);
 
-    const log = await withSystem(db, (tx) =>
+    const log = await withSystem(db, 'test-fixture', (tx) =>
       tx.select().from(alertDeliveries).where(eq(alertDeliveries.alertId, a.id)),
     );
     expect(log.map((r) => r.channel)).toContain('console'); // routed channel was tried

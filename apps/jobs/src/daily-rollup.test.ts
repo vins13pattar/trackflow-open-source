@@ -38,7 +38,7 @@ describe.skipIf(!enabled)('daily rollups', () => {
       .returning();
     tenantId = t!.id;
     // devices/trips are RLS-protected; jobs bypass RLS via withSystem.
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       const [d] = await tx
         .insert(devices)
         .values({ tenantId, name: 'Dev', imei: `imei-${Math.random().toString(36).slice(2, 12)}` })
@@ -53,7 +53,7 @@ describe.skipIf(!enabled)('daily rollups', () => {
   });
 
   const rollups = () =>
-    withSystem(db, (tx) => tx.select().from(dailyRollups).where(eq(dailyRollups.deviceId, deviceId)).orderBy(dailyRollups.day));
+    withSystem(db, 'test-fixture', (tx) => tx.select().from(dailyRollups).where(eq(dailyRollups.deviceId, deviceId)).orderBy(dailyRollups.day));
 
   it('aggregates trips into one row per device-day', async () => {
     await rebuildDailyRollups(windowStart);
@@ -75,7 +75,7 @@ describe.skipIf(!enabled)('daily rollups', () => {
     await rebuildDailyRollups(windowStart);
     expect(await rollups()).toHaveLength(2);
 
-    await withSystem(db, (tx) => tx.insert(trips).values([trip(dayA, 18, 7, 90, 1)]));
+    await withSystem(db, 'test-fixture', (tx) => tx.insert(trips).values([trip(dayA, 18, 7, 90, 1)]));
     await rebuildDailyRollups(windowStart);
 
     const rows = await rollups();

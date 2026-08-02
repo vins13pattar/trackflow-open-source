@@ -19,7 +19,7 @@ const REPORT_EMAIL = process.env.REPORT_EMAIL;
 
 export async function runReport(): Promise<void> {
   const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
-  const fleet = await withSystem(db, (tx) =>
+  const fleet = await withSystem(db, 'system-job', (tx) =>
     tx.select({ id: devices.id, name: devices.name }).from(devices),
   );
 
@@ -29,7 +29,7 @@ export async function runReport(): Promise<void> {
   let fleetDistance = 0;
 
   for (const d of fleet) {
-    const t = await withSystem(db, (tx) =>
+    const t = await withSystem(db, 'system-job', (tx) =>
       tx.select().from(trips).where(and(eq(trips.deviceId, d.id), gte(trips.startedAt, since))).orderBy(desc(trips.startedAt)),
     );
     const distance = t.reduce((s, x) => s + x.distanceKm, 0);

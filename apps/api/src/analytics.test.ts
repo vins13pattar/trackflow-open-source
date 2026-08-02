@@ -1,7 +1,7 @@
 import { dailyRollups, devices, eq, tenants, withSystem } from '@trackflow/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 
 // Requires a running Postgres with the schema applied. Gated so `pnpm test`
 // stays green without a DB.
@@ -26,7 +26,7 @@ describe.skipIf(!enabled)('analytics reads daily rollups', () => {
     tenantId = body.user.tenantId;
     token = body.tokens.accessToken;
 
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       const [d] = await tx
         .insert(devices)
         .values({ tenantId, name: 'Dev', imei: `imei-${stamp}` })

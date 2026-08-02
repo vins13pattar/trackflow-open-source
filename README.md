@@ -49,7 +49,7 @@ GPS device ──TCP──▶ apps/ingest ──HTTP──▶ apps/api ──▶
 pnpm install
 pnpm db:up                                   # Postgres + Redis via docker compose
 pnpm --filter @trackflow/db db:migrate       # apply SQL migrations (uses ADMIN_DATABASE_URL)
-pnpm --filter @trackflow/db db:rls           # provision non-superuser role + RLS policies
+pnpm --filter @trackflow/db db:rls           # provision tenant/system roles + RLS policies
 
 pnpm api:dev      # API on :8787 (connects as the non-superuser app role)
 pnpm ingest:dev   # TCP decoders on :5023 (GT06) and :5013 (H02)
@@ -57,8 +57,10 @@ pnpm web:dev      # dashboard on :3000
 ```
 
 > **Tenant isolation** is enforced by Postgres Row-Level Security. Migrations run as the owner
-> (`ADMIN_DATABASE_URL`); the app connects as a **non-superuser** role (`DATABASE_URL`) because
-> superusers bypass RLS. Run the RLS isolation test with `TF_DB_TESTS=1 pnpm --filter @trackflow/db test`.
+> (`ADMIN_DATABASE_URL`). Tenant requests use a **non-superuser/NOBYPASSRLS** role
+> (`DATABASE_URL`); reviewed cross-tenant paths use the separate
+> `SYSTEM_DATABASE_URL`. The tenant role cannot self-promote. Run the RLS
+> isolation test with `TF_DB_TESTS=1 pnpm --filter @trackflow/db test`.
 
 Then register at http://localhost:3000/register, add a device with IMEI `865432019876543`, and feed it
 live data with the simulator (no hardware needed):

@@ -1,5 +1,5 @@
 import { and, eq, sql, type Webhook, webhookDeliveries, webhooks, withSystem } from '@trackflow/db';
-import { db } from './db.js';
+import { systemDb } from './db.js';
 import { hmacHex } from './hmac.js';
 import { validateWebhookTarget } from './webhook-target.js';
 
@@ -29,7 +29,7 @@ async function logAttempt(
   result: { status: 'sent' | 'failed'; httpStatus?: number; error?: string; durationMs: number },
 ): Promise<void> {
   try {
-    await withSystem(db, (tx) =>
+    await withSystem(systemDb, 'notification-delivery', (tx) =>
       tx.insert(webhookDeliveries).values({
         tenantId: hook.tenantId,
         webhookId: hook.id,
@@ -85,7 +85,7 @@ export async function deliverOne(hook: Webhook, event: string, data: unknown): P
       const durationMs = Date.now() - startedAt;
       if (res.ok) {
         await logAttempt(hook, event, attempt, { status: 'sent', httpStatus: res.status, durationMs });
-        await withSystem(db, (tx) =>
+        await withSystem(systemDb, 'notification-delivery', (tx) =>
           tx
             .update(webhooks)
             .set({ successCount: sql`${webhooks.successCount} + 1`, lastSuccessAt: sql`now()`, lastError: null })
@@ -102,7 +102,7 @@ export async function deliverOne(hook: Webhook, event: string, data: unknown): P
     }
   }
 
-  await withSystem(db, (tx) =>
+  await withSystem(systemDb, 'notification-delivery', (tx) =>
     tx
       .update(webhooks)
       .set({ failureCount: sql`${webhooks.failureCount} + 1`, lastFailureAt: sql`now()`, lastError })
@@ -123,7 +123,7 @@ function matchesDeviceFilter(hook: Webhook, data: unknown): boolean {
 /** Fans an event out to all of a tenant's active webhooks subscribed to it
  *  (and not filtered out by the per-device allow-list). */
 export async function deliverEvent(tenantId: string, event: string, data: unknown): Promise<void> {
-  const hooks = await withSystem(db, (tx) =>
+  const hooks = await withSystem(systemDb, 'notification-delivery', (tx) =>
     tx.select().from(webhooks).where(and(eq(webhooks.tenantId, tenantId), eq(webhooks.status, 'active'))),
   );
   const subscribed = hooks.filter((h) => h.events.includes(event) && matchesDeviceFilter(h, data));

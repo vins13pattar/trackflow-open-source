@@ -5,7 +5,20 @@ import * as schema from './schema.js';
 export * from './schema.js';
 export { schema };
 export { eq, and, or, desc, asc, gte, gt, lte, lt, ilike, inArray, isNull, isNotNull, sql } from 'drizzle-orm';
-export { applyRls, ensureAppRole, withTenant, withSystem, rlsStatements, RLS_TABLES, type Tx } from './rls.js';
+export {
+  applyRls,
+  ensureAppRole,
+  ensureSystemRole,
+  withTenant,
+  withSystem,
+  rlsStatements,
+  appRoleStatements,
+  systemRoleStatements,
+  RLS_TABLES,
+  SYSTEM_ACCESS_REASONS,
+  type SystemAccessReason,
+  type Tx,
+} from './rls.js';
 
 export type Database = ReturnType<typeof createDb>;
 

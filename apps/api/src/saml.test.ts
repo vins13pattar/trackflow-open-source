@@ -2,7 +2,7 @@ import { eq, samlConfigs, tenants, users, withSystem } from '@trackflow/db';
 import { issueTokens } from '@trackflow/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { env } from './env.js';
 import { extractProfile } from './saml.js';
 
@@ -66,7 +66,7 @@ describe.skipIf(!enabled)('SAML config CRUD + metadata', () => {
 
   afterAll(async () => {
     if (tenantId) {
-      await withSystem(db, (tx) => tx.delete(samlConfigs).where(eq(samlConfigs.tenantId, tenantId)));
+      await withSystem(db, 'test-fixture', (tx) => tx.delete(samlConfigs).where(eq(samlConfigs.tenantId, tenantId)));
       await db.delete(tenants).where(eq(tenants.id, tenantId));
     }
   });

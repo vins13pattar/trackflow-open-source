@@ -25,7 +25,7 @@ export interface IngestHealth {
  *  or the most recent write is within `staleMs`. */
 export async function checkIngestHealth(opts: { staleMs?: number; tenantId?: string } = {}): Promise<IngestHealth> {
   const staleMs = opts.staleMs ?? STALE_MS;
-  return withSystem(db, async (tx) => {
+  return withSystem(db, 'system-job', async (tx) => {
     const [row] = await tx
       .select({
         latest: sql<string | null>`max(${devices.lastSeen})`,

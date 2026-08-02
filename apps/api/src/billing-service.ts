@@ -1,6 +1,6 @@
 import { and, devices, eq, type Invoice, invoices, sql, tenants, type Tx, users, withSystem, withTenant } from '@trackflow/db';
 import { GST_RATE, type PlanId, errors, planRank, withinLimit } from '@trackflow/shared';
-import { db } from './db.js';
+import { db, systemDb } from './db.js';
 import { getBilledRate } from './billing-rates-service.js';
 import { renderInvoicePdf } from './invoice-pdf.js';
 import { currentVersionId, resolvePlanByKey, resolveTenantPlan } from './plan-service.js';
@@ -59,7 +59,7 @@ function periodBounds(period: string): { start: Date; end: Date } {
  *  tenant+period; returns the invoice, or null when there's nothing to bill. */
 export async function invoiceOverages(tenantId: string, period: string): Promise<Invoice | null> {
   const providerRef = `overage:${period}`;
-  const [existing] = await withSystem(db, (tx) =>
+  const [existing] = await withSystem(systemDb, 'billing-provider', (tx) =>
     tx
       .select()
       .from(invoices)
@@ -75,7 +75,7 @@ export async function invoiceOverages(tenantId: string, period: string): Promise
   const subtotal = Math.round(totalInr);
   const tax = Math.round(subtotal * GST_RATE);
   const { start, end } = periodBounds(period);
-  return withSystem(db, async (tx) => {
+  return withSystem(systemDb, 'billing-provider', async (tx) => {
     const [inv] = await tx
       .insert(invoices)
       .values({
@@ -167,7 +167,7 @@ const overLimit = (count: number, limit: number): boolean => limit >= 0 && count
 /** Bills metered overages for every tenant for a closed period (operator/cron
  *  triggered). Idempotent via invoiceOverages's per-tenant+period dedup. */
 export async function closePeriodOverages(period: string): Promise<{ tenants: number; billed: number; totalInr: number }> {
-  const rows = await withSystem(db, (tx) => tx.select({ id: tenants.id }).from(tenants));
+  const rows = await withSystem(systemDb, 'billing-provider', (tx) => tx.select({ id: tenants.id }).from(tenants));
   let billed = 0;
   let totalInr = 0;
   for (const t of rows) {
@@ -237,7 +237,7 @@ export async function applyUpgrade(
   // Idempotency: payment webhooks can be redelivered. If we already recorded an
   // invoice for this provider reference, return it without re-applying the upgrade.
   if (providerRef) {
-    const [existing] = await withSystem(db, (tx) =>
+    const [existing] = await withSystem(systemDb, 'billing-provider', (tx) =>
       tx
         .select()
         .from(invoices)
@@ -264,7 +264,7 @@ export async function applyUpgrade(
   const tax = Math.round(subtotal * GST_RATE);
   const total = subtotal + tax;
 
-  const invoice = await withSystem(db, async (tx) => {
+  const invoice = await withSystem(systemDb, 'billing-provider', async (tx) => {
     const [inv] = await tx
       .insert(invoices)
       .values({
@@ -294,7 +294,7 @@ export async function applyUpgrade(
     const pdf = await renderInvoicePdf({ invoice, tenantName: tenantRow?.name ?? 'Customer' });
     const url = await putObject(`invoices/${tenantId}/${invoice.number}.pdf`, Buffer.from(pdf), 'application/pdf');
     if (url) {
-      await withSystem(db, (tx) => tx.update(invoices).set({ pdfUrl: url }).where(eq(invoices.id, invoice.id)));
+      await withSystem(systemDb, 'billing-provider', (tx) => tx.update(invoices).set({ pdfUrl: url }).where(eq(invoices.id, invoice.id)));
       invoice.pdfUrl = url;
     }
   } catch (err) {

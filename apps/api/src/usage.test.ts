@@ -1,6 +1,6 @@
 import { and, eq, tenants, usageCounters, withSystem } from '@trackflow/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { currentPeriod, getUsage, meterApiCall, meterSms } from './usage-service.js';
 
 // Requires a running Postgres with RLS applied. Gated so `pnpm test` stays green without a DB.
@@ -19,7 +19,7 @@ describe.skipIf(!enabled)('usage metering', () => {
 
   afterAll(async () => {
     if (tenantId) {
-      await withSystem(db, (tx) => tx.delete(usageCounters).where(eq(usageCounters.tenantId, tenantId)));
+      await withSystem(db, 'test-fixture', (tx) => tx.delete(usageCounters).where(eq(usageCounters.tenantId, tenantId)));
       await db.delete(tenants).where(eq(tenants.id, tenantId));
     }
   });
@@ -33,7 +33,7 @@ describe.skipIf(!enabled)('usage metering', () => {
   });
 
   it('enforces the monthly API quota (free plan = 500)', async () => {
-    await withSystem(db, (tx) =>
+    await withSystem(db, 'test-fixture', (tx) =>
       tx
         .update(usageCounters)
         .set({ apiCalls: 500 })

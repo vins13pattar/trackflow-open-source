@@ -2,7 +2,7 @@ import { apiKeys, eq, tenants, users, withSystem } from '@trackflow/db';
 import { generateApiKey } from '@trackflow/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 
 // Requires Postgres + RLS applied. Gated so `pnpm test` stays green without one.
 const enabled = !!process.env.TF_DB_TESTS;
@@ -21,7 +21,7 @@ describe.skipIf(!enabled)('SCIM 2.0 user provisioning', () => {
     tenantId = t!.id;
     // SCIM-scoped API key.
     const scim = await generateApiKey();
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       await tx.insert(apiKeys).values({
         tenantId,
         name: 'SCIM token',
@@ -33,7 +33,7 @@ describe.skipIf(!enabled)('SCIM 2.0 user provisioning', () => {
     scimToken = scim.key;
     // A second key WITHOUT the SCIM scope, used to assert insufficient_scope.
     const reg = await generateApiKey();
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       await tx.insert(apiKeys).values({
         tenantId,
         name: 'regular key',
@@ -47,8 +47,8 @@ describe.skipIf(!enabled)('SCIM 2.0 user provisioning', () => {
 
   afterAll(async () => {
     if (tenantId) {
-      await withSystem(db, (tx) => tx.delete(users).where(eq(users.tenantId, tenantId)));
-      await withSystem(db, (tx) => tx.delete(apiKeys).where(eq(apiKeys.tenantId, tenantId)));
+      await withSystem(db, 'test-fixture', (tx) => tx.delete(users).where(eq(users.tenantId, tenantId)));
+      await withSystem(db, 'test-fixture', (tx) => tx.delete(apiKeys).where(eq(apiKeys.tenantId, tenantId)));
       await db.delete(tenants).where(eq(tenants.id, tenantId));
     }
   });

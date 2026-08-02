@@ -18,4 +18,13 @@ export function assertSecureConfig(): void {
   if (unset.length > 0) {
     throw new Error(`Refusing to start in production with default dev secret(s): ${unset.join(', ')}. Set strong values.`);
   }
+
+  const tenantUrl = process.env.DATABASE_URL;
+  const systemUrl = process.env.SYSTEM_DATABASE_URL;
+  if (!tenantUrl || !systemUrl) {
+    throw new Error('Refusing to start in production without distinct DATABASE_URL and SYSTEM_DATABASE_URL values.');
+  }
+  if (tenantUrl === systemUrl) {
+    throw new Error('Refusing to start in production: tenant and system database identities must be distinct.');
+  }
 }

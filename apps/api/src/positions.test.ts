@@ -1,6 +1,6 @@
 import { devices, eq, positions, sql, tenants, withSystem } from '@trackflow/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { recordPosition } from './positions-service.js';
 
 // Requires a running Postgres with the schema applied. Gated so `pnpm test`
@@ -17,7 +17,7 @@ describe.skipIf(!enabled)('ingest idempotency', () => {
       .values({ name: 'Ingest', slug: `pos-${Math.random().toString(36).slice(2, 10)}` })
       .returning();
     tenantId = t!.id;
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       const [d] = await tx
         .insert(devices)
         .values({ tenantId, name: 'Dev', imei: `imei-${Math.random().toString(36).slice(2, 12)}` })
@@ -42,9 +42,9 @@ describe.skipIf(!enabled)('ingest idempotency', () => {
     fixTime,
     kind: 'location',
   });
-  const record = (fixTime: Date) => withSystem(db, (tx) => recordPosition(tx, input(fixTime)));
+  const record = (fixTime: Date) => withSystem(db, 'test-fixture', (tx) => recordPosition(tx, input(fixTime)));
   const count = async () => {
-    const rows = await withSystem(db, (tx) =>
+    const rows = await withSystem(db, 'test-fixture', (tx) =>
       tx.select({ n: sql<string>`count(*)` }).from(positions).where(eq(positions.deviceId, deviceId)),
     );
     return Number(rows[0]!.n);

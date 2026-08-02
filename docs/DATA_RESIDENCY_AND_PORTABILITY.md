@@ -49,7 +49,7 @@ TrackFlow depends on capabilities, not provider product names:
 | Capability | Portable contract |
 |---|---|
 | Compute | OCI containers; HTTP for API/jobs; TCP pass-through for ingest |
-| Database | PostgreSQL 16 through `DATABASE_URL`; SQL migrations; non-owner runtime role |
+| Database | PostgreSQL 16 through owner, tenant, and reviewed-system URLs; SQL migrations; no owner credential in a running service |
 | Ephemeral coordination | Redis 7 through `REDIS_URL` (`rediss://` or a private encrypted network) |
 | Object storage | S3-compatible endpoint/bucket/credentials |
 | Identity and delivery | Standards or narrow adapters: SAML/OIDC, SMTP/provider APIs, signed webhooks |

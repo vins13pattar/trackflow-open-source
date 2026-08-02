@@ -2,7 +2,7 @@ import { apiKeys, eq, sql, withSystem } from '@trackflow/db';
 import type { Role } from '@trackflow/shared';
 import { apiKeyParts, errors, verifyToken } from '@trackflow/shared';
 import type { MiddlewareHandler } from 'hono';
-import { db } from '../db.js';
+import { systemDb } from '../db.js';
 import { env } from '../env.js';
 import { meterApiCall } from '../usage-service.js';
 
@@ -34,7 +34,7 @@ export const authenticate: MiddlewareHandler<AppEnv> = async (c, next) => {
   const apiKey = c.req.header('x-api-key');
   if (apiKey) {
     const { prefix, hash } = await apiKeyParts(apiKey);
-    const principal = await withSystem(db, async (tx) => {
+    const principal = await withSystem(systemDb, 'api-key-authentication', async (tx) => {
       const [row] = await tx.select().from(apiKeys).where(eq(apiKeys.prefix, prefix));
       if (!row || row.revokedAt || row.keyHash !== hash) return null;
       await tx.update(apiKeys).set({ lastUsedAt: sql`now()` }).where(eq(apiKeys.id, row.id));

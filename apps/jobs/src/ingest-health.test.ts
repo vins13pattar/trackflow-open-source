@@ -18,7 +18,7 @@ describe.skipIf(!enabled)('ingest health watchdog', () => {
       .values({ name: 'Ingest', slug: `ingest-${Math.random().toString(36).slice(2, 10)}` })
       .returning();
     tenantId = t!.id;
-    await withSystem(db, async (tx) => {
+    await withSystem(db, 'test-fixture', async (tx) => {
       const [d] = await tx
         .insert(devices)
         .values({ tenantId, name: 'Dev', imei: `imei-${Math.random().toString(36).slice(2, 12)}` })
@@ -32,7 +32,7 @@ describe.skipIf(!enabled)('ingest health watchdog', () => {
   });
 
   const setDevice = (lastSeen: Date | null, status = 'active') =>
-    withSystem(db, (tx) => tx.update(devices).set({ lastSeen, status }).where(eq(devices.id, deviceId)));
+    withSystem(db, 'test-fixture', (tx) => tx.update(devices).set({ lastSeen, status }).where(eq(devices.id, deviceId)));
 
   it('is healthy when a device reported recently', async () => {
     await setDevice(new Date());

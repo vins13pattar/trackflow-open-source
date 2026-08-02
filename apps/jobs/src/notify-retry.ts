@@ -50,7 +50,7 @@ export async function retryDueDeliveries(
   now: Date = new Date(),
   reg: Record<ChannelName, Channel> = registry,
 ): Promise<RetryResult> {
-  const due = await withSystem(db, (tx) =>
+  const due = await withSystem(db, 'system-job', (tx) =>
     tx
       .select()
       .from(alertDeliveries)
@@ -73,7 +73,7 @@ export async function retryDueDeliveries(
     const ok = result?.status === 'sent';
 
     if (ok) {
-      await withSystem(db, (tx) =>
+      await withSystem(db, 'system-job', (tx) =>
         tx
           .update(alertDeliveries)
           .set({ status: 'sent', attempt, error: null, nextRetryAt: null, updatedAt: sql`now()` })
@@ -81,7 +81,7 @@ export async function retryDueDeliveries(
       );
       sent += 1;
     } else if (attempt >= MAX_ATTEMPTS) {
-      await withSystem(db, (tx) =>
+      await withSystem(db, 'system-job', (tx) =>
         tx
           .update(alertDeliveries)
           .set({ status: 'abandoned', attempt, error: result?.error ?? 'max attempts reached', nextRetryAt: null, updatedAt: sql`now()` })
@@ -90,7 +90,7 @@ export async function retryDueDeliveries(
       abandoned += 1;
     } else {
       const nextRetryAt = new Date(now.getTime() + BASE_BACKOFF_MS * 2 ** (attempt - 1));
-      await withSystem(db, (tx) =>
+      await withSystem(db, 'system-job', (tx) =>
         tx
           .update(alertDeliveries)
           .set({ status: 'failed', attempt, error: result?.error ?? 'retry failed', nextRetryAt, updatedAt: sql`now()` })

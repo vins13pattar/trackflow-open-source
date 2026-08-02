@@ -3,7 +3,7 @@ import { devices, eq, invoices, tenants, users, withSystem } from '@trackflow/db
 import { issueTokens } from '@trackflow/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { env } from './env.js';
 
 // Requires a running Postgres with RLS applied (`pnpm db:rls`). Gated so the
@@ -35,7 +35,7 @@ describe.skipIf(!enabled)('billing: webhook-driven upgrades', () => {
 
   afterAll(async () => {
     if (tenantId) {
-      await withSystem(db, (tx) => tx.delete(invoices).where(eq(invoices.tenantId, tenantId)));
+      await withSystem(db, 'test-fixture', (tx) => tx.delete(invoices).where(eq(invoices.tenantId, tenantId)));
       await db.delete(tenants).where(eq(tenants.id, tenantId));
     }
     process.env.NODE_ENV = envBackup;
@@ -53,7 +53,7 @@ describe.skipIf(!enabled)('billing: webhook-driven upgrades', () => {
     return t!.plan;
   }
   async function invoiceCount(): Promise<number> {
-    const rows = await withSystem(db, (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
+    const rows = await withSystem(db, 'test-fixture', (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
     return rows.length;
   }
 
@@ -78,7 +78,7 @@ describe.skipIf(!enabled)('billing: webhook-driven upgrades', () => {
     expect(res.status).toBe(200);
     expect(await tenantPlan()).toBe('professional');
 
-    const rows = await withSystem(db, (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
+    const rows = await withSystem(db, 'test-fixture', (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
     expect(rows).toHaveLength(1);
     expect(rows[0]!.provider).toBe('razorpay');
     expect(rows[0]!.providerRef).toBe('pay_abc123');
@@ -97,7 +97,7 @@ describe.skipIf(!enabled)('billing: webhook-driven upgrades', () => {
   });
 
   it('serves a downloadable GST PDF for an invoice', async () => {
-    const rows = await withSystem(db, (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
+    const rows = await withSystem(db, 'test-fixture', (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
     const res = await app.request(`/billing/invoices/${rows[0]!.id}/pdf`, {
       headers: { authorization: `Bearer ${token}` },
     });
@@ -167,7 +167,7 @@ describe.skipIf(!enabled)('billing: Stripe Checkout + webhook', () => {
 
   afterAll(async () => {
     if (tenantId) {
-      await withSystem(db, (tx) => tx.delete(invoices).where(eq(invoices.tenantId, tenantId)));
+      await withSystem(db, 'test-fixture', (tx) => tx.delete(invoices).where(eq(invoices.tenantId, tenantId)));
       await db.delete(tenants).where(eq(tenants.id, tenantId));
     }
   });
@@ -234,7 +234,7 @@ describe.skipIf(!enabled)('billing: Stripe Checkout + webhook', () => {
     expect(res.status).toBe(200);
     const [t] = await db.select({ plan: tenants.plan }).from(tenants).where(eq(tenants.id, tenantId));
     expect(t!.plan).toBe('professional');
-    const rows = await withSystem(db, (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
+    const rows = await withSystem(db, 'test-fixture', (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
     expect(rows).toHaveLength(1);
     expect(rows[0]!.provider).toBe('stripe');
     expect(rows[0]!.providerRef).toBe('cs_test_session_123');
@@ -249,7 +249,7 @@ describe.skipIf(!enabled)('billing: Stripe Checkout + webhook', () => {
       headers: { 'content-type': 'application/json', 'stripe-signature': `t=${ts},v1=${sig}` },
       body,
     });
-    const rows = await withSystem(db, (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
+    const rows = await withSystem(db, 'test-fixture', (tx) => tx.select().from(invoices).where(eq(invoices.tenantId, tenantId)));
     expect(rows).toHaveLength(1);
   });
 
@@ -300,7 +300,7 @@ describe.skipIf(!enabled)('billing: plan lifecycle', () => {
 
   afterAll(async () => {
     if (tenantId) {
-      await withSystem(db, (tx) => tx.delete(devices).where(eq(devices.tenantId, tenantId)));
+      await withSystem(db, 'test-fixture', (tx) => tx.delete(devices).where(eq(devices.tenantId, tenantId)));
       await db.delete(tenants).where(eq(tenants.id, tenantId));
     }
   });
@@ -313,7 +313,7 @@ describe.skipIf(!enabled)('billing: plan lifecycle', () => {
   it('blocks a downgrade when usage exceeds the target plan limits', async () => {
     const stamp = Date.now();
     for (let i = 0; i < 6; i++) {
-      const [d] = await withSystem(db, (tx) =>
+      const [d] = await withSystem(db, 'test-fixture', (tx) =>
         tx.insert(devices).values({ tenantId, name: `d${i}`, imei: `imei-${stamp}-${i}` }).returning(),
       );
       deviceIds.push(d!.id);
@@ -329,7 +329,7 @@ describe.skipIf(!enabled)('billing: plan lifecycle', () => {
 
   it('allows the downgrade once usage fits', async () => {
     for (const id of deviceIds.slice(1)) {
-      await withSystem(db, (tx) => tx.delete(devices).where(eq(devices.id, id)));
+      await withSystem(db, 'test-fixture', (tx) => tx.delete(devices).where(eq(devices.id, id)));
     }
     const res = await app.request('/billing/downgrade', {
       method: 'POST',

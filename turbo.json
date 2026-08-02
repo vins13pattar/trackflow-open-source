@@ -16,7 +16,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "env": ["ADMIN_DATABASE_URL", "DATABASE_URL", "TF_DB_TESTS"]
+      "env": ["ADMIN_DATABASE_URL", "DATABASE_URL", "SYSTEM_DATABASE_URL", "TF_DB_TESTS"]
     }
   }
 }

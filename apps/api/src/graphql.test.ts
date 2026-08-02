@@ -2,7 +2,7 @@ import { devices, eq, tenants, users, withSystem } from '@trackflow/db';
 import { issueTokens } from '@trackflow/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
-import { db } from './db.js';
+import { systemDb as db } from './db.js';
 import { env } from './env.js';
 
 const enabled = !!process.env.TF_DB_TESTS;
@@ -33,7 +33,7 @@ describe.skipIf(!enabled)('GraphQL endpoint', () => {
       .returning();
     token = (await issueTokens({ sub: u!.id, tid: tenantId, role: 'owner' }, env.jwt)).accessToken;
     // Seed each tenant with one device.
-    await withSystem(db, (tx) =>
+    await withSystem(db, 'test-fixture', (tx) =>
       tx.insert(devices).values([
         { tenantId, name: 'My truck', imei: `imei-mine-${stamp}` },
         { tenantId: otherTenantId, name: 'Other truck', imei: `imei-other-${stamp}` },
@@ -44,7 +44,7 @@ describe.skipIf(!enabled)('GraphQL endpoint', () => {
   afterAll(async () => {
     for (const id of [tenantId, otherTenantId]) {
       if (id) {
-        await withSystem(db, (tx) => tx.delete(devices).where(eq(devices.tenantId, id)));
+        await withSystem(db, 'test-fixture', (tx) => tx.delete(devices).where(eq(devices.tenantId, id)));
         await db.delete(tenants).where(eq(tenants.id, id));
       }
     }
@@ -84,7 +84,7 @@ describe.skipIf(!enabled)('GraphQL endpoint', () => {
     expect(ok.data.device?.name).toBe('My truck');
 
     // Get the foreign device id (using a system tx so RLS doesn't filter).
-    const [foreign] = await withSystem(db, (tx) =>
+    const [foreign] = await withSystem(db, 'test-fixture', (tx) =>
       tx.select({ id: devices.id }).from(devices).where(eq(devices.tenantId, otherTenantId)),
     );
     const cross = (await (await gql(`{ device(id: "${foreign!.id}") { name } }`)).json()) as {
