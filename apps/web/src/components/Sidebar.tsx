@@ -1,9 +1,10 @@
 'use client';
 
-import { BarChart3, Bell, HelpCircle, Layers, MapPinned, Radio, Settings, Shapes, Truck } from 'lucide-react';
+import { BarChart3, Bell, HelpCircle, Layers, MapPinned, Radio, Settings, Shapes, Truck, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Brand } from './Brand';
+import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 
 const nav = [
@@ -20,12 +21,14 @@ const nav = [
 
 export function Sidebar({
   onNavigate,
+  onClose,
   brandName,
   logoUrl,
   planLabel,
   planDetail,
 }: {
   onNavigate?: () => void;
+  onClose?: () => void;
   brandName?: string;
   logoUrl?: string | null;
   planLabel?: string;
@@ -36,6 +39,18 @@ export function Sidebar({
     <aside className="flex h-full w-60 flex-col border-r border-border bg-card">
       <div className="flex h-16 items-center border-b border-border px-5">
         <Brand name={brandName} logoUrl={logoUrl} />
+        {onClose && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="ml-auto shrink-0"
+            onClick={onClose}
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        )}
       </div>
       <nav className="flex-1 space-y-1 p-3">
         {nav.map((item) => {

@@ -30,6 +30,12 @@ is ready for real tenant, vehicle, or location data.
 - PR [#25](https://github.com/vins13pattar/trackflow-open-source/pull/25)
   separated tenant and reviewed-system PostgreSQL identities and added a checked
   privileged-path inventory.
+- PR [#26](https://github.com/vins13pattar/trackflow-open-source/pull/26)
+  added provider-neutral Redis realtime fan-out, bounded SSE mailboxes, and
+  durable safe-command wake-up/routing with real-Redis CI coverage.
+- The [local product acceptance record](LOCAL_ACCEPTANCE.md) covers a synthetic
+  tenant registration, device creation, connection guide, and corrected
+  desktop/mobile layouts without starting ingest.
 - Merged-main
   [Security run 30430688995](https://github.com/vins13pattar/trackflow-open-source/actions/runs/30430688995)
   passed dependency audit, Gitleaks, Semgrep, and SBOM generation.
@@ -58,7 +64,7 @@ workloads, not production guarantees.
 - [#16 Prove multi-replica recovery and durable ingest handoff](https://github.com/vins13pattar/trackflow-open-source/issues/16)
 - [#17 Expand tenant-isolation and privileged-path verification](https://github.com/vins13pattar/trackflow-open-source/issues/17) — repository controls complete in PR #25; live identity provisioning remains part of deployment
 - [#18 Publish full-platform capacity evidence](https://github.com/vins13pattar/trackflow-open-source/issues/18)
-- [#19 Implement shared realtime fan-out and immediate command routing](https://github.com/vins13pattar/trackflow-open-source/issues/19)
+- [#19 Implement shared realtime fan-out and immediate command routing](https://github.com/vins13pattar/trackflow-open-source/issues/19) — repository implementation complete in PR #26; hosted multi-replica recovery stays under #16
 
 ### P2 — product acceptance and release
 
