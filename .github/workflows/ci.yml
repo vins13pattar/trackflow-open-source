@@ -60,19 +60,30 @@ jobs:
           -v "$PWD/ops/prometheus:/rules:ro"
           prom/prometheus@sha256:6927e0919a144aa7616fd0137d4816816d42f6b816de3af269ab065250859a62
           check rules /rules/alerts.yml
-      # Load-test gate: boot the API and fail the build if the ingest write
-      # path regresses past the p95 budget (tune P95_BUDGET_MS as infra changes).
-      - name: Load-test gate (ingest p95)
+      # Load-test gates: boot one API process and fail on either the internal
+      # ingest write budget or authenticated tenant read/write budgets.
+      - name: Load-test gates (ingest and authenticated API p95)
         run: |
           pnpm --filter @trackflow/api start &
           API_PID=$!
           for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8787/health >/dev/null && break; sleep 1; done
           set +e
           P95_BUDGET_MS=1000 N=1000 CONCURRENCY=50 node loadtest/run.mjs
-          STATUS=$?
+          INGEST_STATUS=$?
+          READ_P95_BUDGET_MS=300 WRITE_P95_BUDGET_MS=300 MAX_ERROR_RATE=0 \
+            READ_N=200 WRITE_N=100 CONCURRENCY=20 \
+            OUTPUT=benchmarks/results/ci-api.json \
+            node loadtest/authenticated-api.mjs
+          API_STATUS=$?
           set -e
           kill "$API_PID" 2>/dev/null || true
-          exit $STATUS
+          if [ "$INGEST_STATUS" -ne 0 ] || [ "$API_STATUS" -ne 0 ]; then exit 1; fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: authenticated-api-benchmark
+          path: benchmarks/results/ci-api.json
+          retention-days: 30
 
   mobile-test:
     runs-on: ubuntu-latest
