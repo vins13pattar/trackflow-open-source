@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "scheme": "trackflow",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
