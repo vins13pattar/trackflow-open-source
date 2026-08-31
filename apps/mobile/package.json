@@ -19,13 +19,13 @@
     "expo-notifications": "~57.0.15",
     "expo-secure-store": "~57.0.2",
     "expo-status-bar": "~57.0.1",
-    "react": "19.2.3",
-    "react-native": "0.86.3"
+    "react": "19.2.8",
+    "react-native": "0.87.0"
   },
   "devDependencies": {
-    "@types/react": "~19.2.4",
+    "@types/react": "~19.2.18",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "brace-expansion": "5.0.9",
