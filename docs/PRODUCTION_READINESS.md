@@ -1,11 +1,13 @@
 # TrackFlow production readiness
 
-Last reconciled: 2026-08-02.
+Last reconciled: 2026-08-27.
 
-TrackFlow's code, dependency, secret-scan, SAST, SBOM, database, test, build,
-mobile, and baseline load gates are green on `main`. That evidence supports
-synthetic development and staging; it does not prove that a hosted deployment
-is ready for real tenant, vehicle, or location data.
+The root and mobile dependency audits, full-history Gitleaks scan, typecheck,
+tests, build, and Expo Doctor pass locally on `codex/ci-security-remediation`.
+The supported Expo SDK 57 patch update resolves the prior Expo/Metro
+`image-size` advisories; GitHub revalidation is still pending. This evidence
+supports synthetic development and staging only; it does not prove a hosted
+deployment is ready for real tenant, vehicle, or location data.
 
 ## Current operating boundary
 
@@ -52,7 +54,10 @@ is ready for real tenant, vehicle, or location data.
   [CI run 30430689023](https://github.com/vins13pattar/trackflow-open-source/actions/runs/30430689023)
   passed typecheck, migrations/RLS, tests, build, Prometheus validation,
   mobile tests, and the bounded load gate.
-- GitHub Dependabot reported zero open alerts after those merges.
+- The historical Dependabot-zero state above is not current. PR #36 upgrades
+  the root and mobile lockfiles, including the supported Expo/Metro patch that
+  removes the former `image-size` findings; Dependabot now monitors
+  `/apps/mobile`.
 
 Performance values in the case study are historical measurements on the named
 workloads, not production guarantees.
