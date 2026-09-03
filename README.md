@@ -13,7 +13,8 @@ only and does not include production credentials, customer data, or private depl
 
 > **Docs:** [Getting Started](docs/GETTING_STARTED.md) (create a workspace, add devices, geofences,
 > alerts, reports, API) · [Architecture](docs/ARCHITECTURE.md) (system, data-flow, tenancy and
-> deployment diagrams) · [Deployment](DEPLOY.md) (go live on the low-cost stack) ·
+> deployment diagrams) · [Interactive diagrams](docs/architecture/README.md) (six explorable
+> HTML views of the same architecture) · [Deployment](DEPLOY.md) (go live on the low-cost stack) ·
 > [Hosting on a domain](docs/HOSTING.md) (concrete Cloudflare + Fly + Vercel + managed
 > PostgreSQL plan) · [Production readiness](docs/PRODUCTION_READINESS.md) (current evidence,
 > synthetic-only boundary, and tracked P0/P1/P2 gates).

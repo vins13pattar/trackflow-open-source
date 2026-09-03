@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "TrackFlow — Position Hot Path",
+    "output": "position-hot-path.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "admission",
+        "label": "Device admission",
+        "focus": [
+          "device",
+          "ingest",
+          "api",
+          "pg"
+        ],
+        "note": "No frame is forwarded until the API confirms an active, protocol-matching device."
+      },
+      {
+        "id": "durable-write",
+        "label": "Durable write",
+        "focus": [
+          "ingest",
+          "api",
+          "pg"
+        ],
+        "note": "One transaction inserts the fix, bumps device telemetry and evaluates geofences."
+      },
+      {
+        "id": "fan-out",
+        "label": "Realtime fan-out",
+        "focus": [
+          "api",
+          "redis",
+          "web",
+          "notify"
+        ],
+        "note": "Redis pub/sub reaches every API replica so any connected dashboard sees the move."
+      }
+    ],
+    "viewBox": [
+      1080,
+      590
+    ],
+    "column_fit": "spread"
+  },
+  "participants": [
+    {
+      "id": "device",
+      "type": "external",
+      "label": "GPS tracker",
+      "sublabel": "GT06 socket"
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "apps/ingest",
+      "sublabel": "decode + queue"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "apps/api",
+      "sublabel": "/internal routes"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "system role"
+    },
+    {
+      "id": "redis",
+      "type": "messagebus",
+      "label": "Redis",
+      "sublabel": "pub/sub"
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Dashboard",
+      "sublabel": "SSE + MapLibre"
+    },
+    {
+      "id": "notify",
+      "type": "external",
+      "label": "Channels",
+      "sublabel": "alert delivery"
+    }
+  ],
+  "segments": [
+    {
+      "from": 160,
+      "to": 330,
+      "label": "Admission"
+    },
+    {
+      "from": 338,
+      "to": 425,
+      "label": "Durable write"
+    },
+    {
+      "from": 433,
+      "to": 507,
+      "label": "Fan-out"
+    }
+  ],
+  "messages": [
+    {
+      "id": "frame",
+      "from": "device",
+      "to": "ingest",
+      "y": 185,
+      "label": "GT06 login + location frame",
+      "variant": "emphasis"
+    },
+    {
+      "id": "admit",
+      "from": "ingest",
+      "to": "api",
+      "y": 217,
+      "label": "POST /internal/devices/admission",
+      "variant": "security"
+    },
+    {
+      "id": "lookup",
+      "from": "api",
+      "to": "pg",
+      "y": 249,
+      "label": "IMEI lookup on the system role",
+      "variant": "default"
+    },
+    {
+      "id": "allowed",
+      "from": "api",
+      "to": "ingest",
+      "y": 281,
+      "label": "allowed + deviceId",
+      "variant": "return"
+    },
+    {
+      "id": "ack",
+      "from": "ingest",
+      "to": "device",
+      "y": 313,
+      "label": "protocol ACK",
+      "variant": "return"
+    },
+    {
+      "id": "sink",
+      "from": "ingest",
+      "to": "api",
+      "y": 345,
+      "label": "POST /internal/positions",
+      "variant": "emphasis"
+    },
+    {
+      "id": "insert",
+      "from": "api",
+      "to": "pg",
+      "y": 377,
+      "label": "insert fix + bump device",
+      "variant": "emphasis"
+    },
+    {
+      "id": "inserted",
+      "from": "pg",
+      "to": "api",
+      "y": 409,
+      "label": "new row, or duplicate no-op",
+      "variant": "return"
+    },
+    {
+      "id": "publish",
+      "from": "api",
+      "to": "redis",
+      "y": 441,
+      "label": "publish tenant position",
+      "variant": "default"
+    },
+    {
+      "id": "sse",
+      "from": "api",
+      "to": "web",
+      "y": 473,
+      "label": "SSE position event",
+      "variant": "emphasis"
+    },
+    {
+      "id": "alerts",
+      "from": "api",
+      "to": "notify",
+      "y": 505,
+      "label": "geofence entry/exit alerts",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "device",
+      "from": 180,
+      "to": 319,
+      "type": "external"
+    },
+    {
+      "participant": "ingest",
+      "from": 180,
+      "to": 383,
+      "type": "backend"
+    },
+    {
+      "participant": "api",
+      "from": 212,
+      "to": 507,
+      "type": "backend"
+    },
+    {
+      "participant": "pg",
+      "from": 244,
+      "to": 286,
+      "type": "database"
+    },
+    {
+      "participant": "pg",
+      "from": 372,
+      "to": 415,
+      "type": "database"
+    },
+    {
+      "participant": "redis",
+      "from": 436,
+      "to": 478,
+      "type": "messagebus"
+    },
+    {
+      "participant": "web",
+      "from": 468,
+      "to": 507,
+      "type": "frontend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Hot path",
+      "items": [
+        "Decode, admit, then forward — the device socket never blocks on the sink",
+        "The forward queue is bounded per device and per process and sheds on overload",
+        "One transaction inserts the fix, bumps telemetry and evaluates geofences"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Trust boundaries",
+      "items": [
+        "A self-declared IMEI is never trusted until admission approves it",
+        "IMEI to tenant resolution is cross-tenant, so it uses the reviewed system role",
+        "Under mTLS the certificate identity must equal the device IMEI"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Failure isolation",
+      "items": [
+        "A flaky sink retries from the queue instead of dropping the socket",
+        "A duplicate fix hits the (device, fix_time) conflict and fires no second alert",
+        "Alert dispatch is fire-and-forget and never blocks the ingest response"
+      ]
+    }
+  ]
+}
