@@ -1,0 +1,364 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "TrackFlow — Production Deployment",
+    "output": "deployment.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/vins13pattar/trackflow-open-source",
+      "revision": "674840f6714ae439ac659052013bf131b999d466"
+    },
+    "views": [
+      {
+        "id": "device-plane",
+        "label": "Device plane",
+        "focus": [
+          "devices",
+          "flyingest",
+          "flyapi",
+          "pg"
+        ],
+        "note": "Raw TCP bypasses the proxy on a dedicated IPv4 and terminates on the always-on tier."
+      },
+      {
+        "id": "user-plane",
+        "label": "User plane",
+        "focus": [
+          "users",
+          "cloudflare",
+          "vercel",
+          "flyapi"
+        ],
+        "note": "Browser traffic enters through Cloudflare and splits between the dashboard and the API."
+      },
+      {
+        "id": "observability",
+        "label": "Observability",
+        "focus": [
+          "prom",
+          "flyingest",
+          "flyapi",
+          "flyjobs"
+        ],
+        "note": "Every service exposes Prometheus metrics on a private port scraped over Fly 6PN."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "users",
+      "type": "external",
+      "label": "Operators",
+      "sublabel": "browser + mobile app",
+      "pos": [
+        50,
+        120
+      ],
+      "size": [
+        200,
+        88
+      ]
+    },
+    {
+      "id": "cloudflare",
+      "type": "cloud",
+      "label": "Cloudflare",
+      "sublabel": "DNS · WAF · TLS",
+      "pos": [
+        390,
+        120
+      ],
+      "size": [
+        200,
+        88
+      ]
+    },
+    {
+      "id": "vercel",
+      "type": "cloud",
+      "label": "Vercel",
+      "sublabel": "apps/web edge network",
+      "pos": [
+        730,
+        120
+      ],
+      "size": [
+        200,
+        88
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Managed Redis 7",
+      "sublabel": "sessions · presence · bus",
+      "pos": [
+        1070,
+        120
+      ],
+      "size": [
+        200,
+        88
+      ]
+    },
+    {
+      "id": "devices",
+      "type": "external",
+      "label": "GPS fleet",
+      "sublabel": "TLS + device credential",
+      "tag": "dedicated IPv4",
+      "pos": [
+        50,
+        330
+      ],
+      "size": [
+        200,
+        100
+      ]
+    },
+    {
+      "id": "flyingest",
+      "type": "backend",
+      "label": "Fly.io ingest",
+      "sublabel": "always-on, multi-instance",
+      "tag": "bom (Mumbai)",
+      "pos": [
+        390,
+        330
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "fly.ingest.toml",
+          "label": "machine config"
+        }
+      ]
+    },
+    {
+      "id": "flyapi",
+      "type": "backend",
+      "label": "Fly.io api",
+      "sublabel": "2 warm replicas on :8787",
+      "tag": "bom (Mumbai)",
+      "pos": [
+        730,
+        330
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "fly.api.toml",
+          "label": "machine config"
+        }
+      ]
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "Managed Postgres 16",
+      "sublabel": "India region · RLS roles",
+      "pos": [
+        1070,
+        330
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "packages/db/src/rls.ts",
+          "label": "role policy"
+        }
+      ]
+    },
+    {
+      "id": "prom",
+      "type": "backend",
+      "label": "Prometheus + Grafana",
+      "sublabel": "SLO + burn-rate alerts",
+      "pos": [
+        390,
+        540
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "ops/prometheus/alerts.yml",
+          "label": "burn-rate rules"
+        }
+      ]
+    },
+    {
+      "id": "flyjobs",
+      "type": "backend",
+      "label": "Fly.io jobs",
+      "sublabel": "scheduler, no public port",
+      "pos": [
+        730,
+        540
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "fly.jobs.toml",
+          "label": "machine config"
+        }
+      ]
+    },
+    {
+      "id": "r2",
+      "type": "cloud",
+      "label": "Cloudflare R2",
+      "sublabel": "report + export objects",
+      "pos": [
+        1070,
+        540
+      ],
+      "size": [
+        200,
+        100
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Managed state and storage",
+      "wraps": [
+        "redis",
+        "pg",
+        "r2"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "c-users",
+      "from": "users",
+      "to": "cloudflare",
+      "label": "HTTPS"
+    },
+    {
+      "id": "c-dash",
+      "from": "cloudflare",
+      "to": "vercel",
+      "label": "dashboard origin"
+    },
+    {
+      "id": "c-api",
+      "from": "cloudflare",
+      "to": "flyapi",
+      "label": "api origin",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c-tcp",
+      "from": "devices",
+      "to": "flyingest",
+      "label": "raw TCP, DNS-only",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c-sink",
+      "from": "flyingest",
+      "to": "flyapi",
+      "label": "HTTP + ingest token",
+      "variant": "emphasis",
+      "labelDy": 13
+    },
+    {
+      "id": "c-sql",
+      "from": "flyapi",
+      "to": "pg",
+      "label": "tenant + system roles",
+      "variant": "emphasis",
+      "labelDy": -30
+    },
+    {
+      "id": "c-redis",
+      "from": "flyapi",
+      "to": "redis",
+      "label": "pub/sub · presence",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "c-jobsdb",
+      "from": "flyjobs",
+      "to": "pg",
+      "label": "rollup · retention"
+    },
+    {
+      "id": "c-archive",
+      "from": "flyjobs",
+      "to": "r2",
+      "label": "CSV + PDF archive",
+      "labelDy": 20
+    },
+    {
+      "id": "c-scrape-ingest",
+      "from": "prom",
+      "to": "flyingest",
+      "label": "scrape :9100",
+      "variant": "dashed"
+    },
+    {
+      "id": "c-scrape-api",
+      "from": "prom",
+      "to": "flyapi",
+      "label": "scrape /metrics",
+      "variant": "dashed"
+    },
+    {
+      "id": "c-scrape-jobs",
+      "from": "prom",
+      "to": "flyjobs",
+      "label": "scrape :9101",
+      "variant": "dashed",
+      "labelDy": 20
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Two front doors",
+      "items": [
+        "Browsers enter via Cloudflare: dashboard on Vercel, API on Fly",
+        "Raw TCP uses a dedicated IPv4 and skips the proxy",
+        "Only ingest is always on; the API keeps two warm replicas"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Regional placement",
+      "items": [
+        "API, ingest and jobs run in bom (Mumbai) near the data services",
+        "Postgres and Redis stay in the India region for a local hot path",
+        "R2 holds only generated report and export objects"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Operability",
+      "items": [
+        "Health and metrics ports are private, scraped over Fly 6PN",
+        "Grafana carries the SLO dashboard and burn-rate rules from ops/",
+        "All three services share one DSN-gated Sentry transport"
+      ]
+    }
+  ]
+}

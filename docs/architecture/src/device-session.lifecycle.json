@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "TrackFlow — Device Session Lifecycle",
+    "output": "device-session.html",
+    "viewBox": [
+      1080,
+      566
+    ],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main-lifecycle",
+        "label": "Session phases",
+        "focus": [
+          "connecting",
+          "identified",
+          "admitting",
+          "streaming",
+          "live"
+        ],
+        "note": "A socket becomes a trusted, IMEI-bound session before any fix is forwarded."
+      },
+      {
+        "id": "quiet-device",
+        "label": "Quiet device",
+        "focus": [
+          "streaming",
+          "stale",
+          "live",
+          "offline"
+        ],
+        "note": "A silent tracker keeps its socket; only the sweep declares it offline."
+      },
+      {
+        "id": "refusal",
+        "label": "Refusal",
+        "focus": [
+          "admitting",
+          "rejected"
+        ],
+        "note": "An IMEI that is not an active, protocol-matching device never reaches the sink."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Session phases"
+    },
+    {
+      "id": "offpath",
+      "label": "Off the happy path"
+    }
+  ],
+  "states": [
+    {
+      "id": "connecting",
+      "type": "start",
+      "label": "Connecting",
+      "sublabel": "TCP socket open",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "quota checked"
+    },
+    {
+      "id": "identified",
+      "type": "active",
+      "label": "Identified",
+      "sublabel": "mTLS or gateway peer",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "tag": "transport"
+    },
+    {
+      "id": "admitting",
+      "type": "decision",
+      "label": "Admitting",
+      "sublabel": "API checks the IMEI",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "gate"
+    },
+    {
+      "id": "streaming",
+      "type": "active",
+      "label": "Streaming",
+      "sublabel": "frames decoded + ACKed",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "tag": "session bound"
+    },
+    {
+      "id": "live",
+      "type": "success",
+      "label": "Live",
+      "sublabel": "presence + map marker",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "tag": "online"
+    },
+    {
+      "id": "stale",
+      "type": "waiting",
+      "label": "Stale",
+      "sublabel": "no frame in window",
+      "lane": "offpath",
+      "col": 1,
+      "tag": "socket held"
+    },
+    {
+      "id": "rejected",
+      "type": "failure",
+      "label": "Rejected",
+      "sublabel": "unknown or inactive",
+      "lane": "offpath",
+      "col": 0,
+      "tag": "socket destroyed"
+    },
+    {
+      "id": "offline",
+      "type": "failure",
+      "label": "Offline",
+      "sublabel": "device.offline fired",
+      "lane": "offpath",
+      "col": 2,
+      "tag": "alert + webhook"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "t-reject",
+      "from": "admitting",
+      "to": "rejected",
+      "label": "not a provisioned device",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelDy": 24
+    },
+    {
+      "id": "t-quiet",
+      "from": "streaming",
+      "to": "stale",
+      "label": "gone quiet",
+      "variant": "default",
+      "route": "drop",
+      "labelDx": -35
+    },
+    {
+      "id": "t-resume",
+      "from": "stale",
+      "to": "streaming",
+      "label": "frame arrives",
+      "variant": "emphasis",
+      "labelDx": 50
+    },
+    {
+      "id": "t-sweep",
+      "from": "live",
+      "to": "offline",
+      "label": "offline sweep",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Session phases",
+      "items": [
+        "Transport identity is established before a single byte is decoded",
+        "A claimed IMEI is only bound after the API admits it as a real device",
+        "The bound session is pinned in Redis so any pod can serve that device"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Still connected",
+      "items": [
+        "A stale device keeps its socket; only the sweep marks it offline",
+        "A reconnect on another pod restores the IMEI from the shared store",
+        "Presence is a Redis registry, so command wake-ups find the right pod"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Refusals",
+      "items": [
+        "Admission rejects any IMEI without an active, protocol-matching device",
+        "Under mTLS the certificate identity must equal the claimed IMEI",
+        "A rejected socket is destroyed and its connection-quota slot is freed"
+      ]
+    }
+  ]
+}

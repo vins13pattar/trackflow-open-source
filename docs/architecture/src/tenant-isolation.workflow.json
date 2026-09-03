@@ -1,0 +1,295 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "TrackFlow — Tenant Isolation Path",
+    "output": "tenant-isolation.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "Authenticated request",
+        "focus": [
+          "client",
+          "edge",
+          "authn",
+          "principal",
+          "withtenant",
+          "rows"
+        ],
+        "note": "A credential becomes a principal, and the principal becomes a transaction-local tenant scope."
+      },
+      {
+        "id": "refusals",
+        "label": "Refusals",
+        "focus": [
+          "authn",
+          "denied",
+          "principal",
+          "throttled"
+        ],
+        "note": "Missing credentials and exhausted quotas stop before any tenant query runs."
+      },
+      {
+        "id": "reviewed-bypass",
+        "label": "Reviewed bypass",
+        "focus": [
+          "authn",
+          "system",
+          "rows"
+        ],
+        "note": "The few genuinely cross-tenant lookups run on a separate, enumerated system identity."
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "external": {
+          "label": "Caller"
+        },
+        "security": {
+          "label": "Policy gate"
+        },
+        "backend": {
+          "label": "API runtime"
+        },
+        "database": {
+          "label": "Postgres"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "intake",
+      "label": "Request intake"
+    },
+    {
+      "id": "identity",
+      "label": "Identity"
+    },
+    {
+      "id": "data",
+      "label": "Tenant transaction"
+    },
+    {
+      "id": "guarded",
+      "label": "Refused and reviewed paths",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p-intake",
+      "label": "Intake",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "p-identity",
+      "label": "Authenticate",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "p-scope",
+      "label": "Scope and enforce",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "emphasis"
+    }
+  ],
+  "groups": [
+    {
+      "id": "g-postgres",
+      "label": "Enforced by Postgres, not app code",
+      "lane": "data",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "client",
+    "edge",
+    "authn",
+    "principal",
+    "withtenant",
+    "rows"
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "lane": "intake",
+      "col": 0,
+      "type": "external",
+      "label": "Client",
+      "sublabel": "browser · mobile · API key",
+      "width": 150
+    },
+    {
+      "id": "edge",
+      "lane": "intake",
+      "col": 1,
+      "type": "security",
+      "label": "Edge middleware",
+      "sublabel": "headers · CORS · IP limit",
+      "width": 150
+    },
+    {
+      "id": "authn",
+      "lane": "identity",
+      "col": 2,
+      "type": "security",
+      "label": "authenticate()",
+      "sublabel": "Bearer JWT or x-api-key",
+      "tag": "PBKDF2 key hash",
+      "width": 150
+    },
+    {
+      "id": "principal",
+      "lane": "identity",
+      "col": 3,
+      "type": "backend",
+      "label": "Principal",
+      "sublabel": "tenant · role · permissions",
+      "width": 150
+    },
+    {
+      "id": "withtenant",
+      "lane": "data",
+      "col": 4,
+      "type": "backend",
+      "label": "withTenant(tx)",
+      "sublabel": "set_config app.tenant_id",
+      "tag": "transaction-local",
+      "width": 150
+    },
+    {
+      "id": "rows",
+      "lane": "data",
+      "col": 5,
+      "type": "database",
+      "label": "Tenant rows",
+      "sublabel": "policy on every table",
+      "tag": "FORCE ROW LEVEL SECURITY",
+      "width": 150
+    },
+    {
+      "id": "denied",
+      "lane": "guarded",
+      "col": 2,
+      "type": "security",
+      "label": "401 Unauthorized",
+      "sublabel": "no valid credential",
+      "width": 150
+    },
+    {
+      "id": "system",
+      "lane": "guarded",
+      "col": 3,
+      "type": "database",
+      "label": "withSystem(reason)",
+      "sublabel": "reviewed BYPASSRLS identity",
+      "width": 150
+    },
+    {
+      "id": "throttled",
+      "lane": "guarded",
+      "col": 4,
+      "type": "security",
+      "label": "429 Throttled",
+      "sublabel": "rate limit or plan quota",
+      "width": 150
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-request",
+      "from": "client",
+      "to": "edge",
+      "label": "HTTPS request",
+      "variant": "default"
+    },
+    {
+      "id": "e-authn",
+      "from": "edge",
+      "to": "authn",
+      "variant": "default"
+    },
+    {
+      "id": "e-denied",
+      "from": "authn",
+      "to": "denied",
+      "label": "no credential",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "e-keylookup",
+      "from": "authn",
+      "to": "system",
+      "label": "API key lookup",
+      "variant": "dashed",
+      "role": "async"
+    },
+    {
+      "id": "e-principal",
+      "from": "authn",
+      "to": "principal",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e-throttled",
+      "from": "principal",
+      "to": "throttled",
+      "label": "over quota",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "e-scope",
+      "from": "principal",
+      "to": "withtenant",
+      "label": "tenant-scoped query",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e-rls",
+      "from": "withtenant",
+      "to": "rows",
+      "label": "RLS filters the read",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Identity",
+      "items": [
+        "A Bearer JWT with optional TOTP MFA, or a PBKDF2-hashed API key",
+        "SAML SSO and SCIM provisioning resolve to the same principal shape",
+        "The API-key lookup is cross-tenant, so it runs on the system role"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Isolation",
+      "items": [
+        "withTenant sets app.tenant_id transaction-locally before any query",
+        "Every tenant table carries a policy and FORCE ROW LEVEL SECURITY",
+        "The app role is NOSUPERUSER NOBYPASSRLS and cannot promote itself"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Escape hatches",
+      "items": [
+        "Migrations run as the database owner via ADMIN_DATABASE_URL",
+        "Reviewed cross-tenant paths use SYSTEM_DATABASE_URL and are enumerated",
+        "Rate limits and plan quotas are metered per API key and per tenant"
+      ]
+    }
+  ]
+}
