@@ -5,6 +5,10 @@ The only always-on piece is the TCP **ingest** service (GPS devices hold sockets
 else scales to ~zero. This document is the visual companion to [README.md](../README.md),
 [DEPLOY.md](../DEPLOY.md), and [PROJECT_PLAN.md](PROJECT_PLAN.md).
 
+> **Interactive diagrams:** the Mermaid diagrams below are the quick read. For explorable versions
+> with guided views, search, tracing, dark mode and export — plus a data-lineage and a device-session
+> view that have no counterpart here — see [`architecture/`](architecture/README.md).
+
 ## System overview
 
 ```mermaid

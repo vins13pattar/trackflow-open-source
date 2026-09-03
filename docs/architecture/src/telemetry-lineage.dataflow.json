@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "TrackFlow — Telemetry Lineage",
+    "output": "telemetry-lineage.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "write-path",
+        "label": "Write path",
+        "focus": [
+          "fixes",
+          "positions",
+          "devices",
+          "alerts"
+        ],
+        "note": "One decoded fix lands in three places: the history table, live device state, and any fired alert."
+      },
+      {
+        "id": "derivation",
+        "label": "Derivation",
+        "focus": [
+          "positions",
+          "trips",
+          "rollups"
+        ],
+        "note": "Trips are re-detected over a moving window, then aggregated per device per day."
+      },
+      {
+        "id": "lifecycle",
+        "label": "Retention",
+        "focus": [
+          "positions",
+          "retention"
+        ],
+        "note": "Each tenant's plan sets its history window; whole monthly partitions age out."
+      }
+    ],
+    "viewBox": [
+      1080,
+      560
+    ]
+  },
+  "stages": [
+    {
+      "label": "Capture"
+    },
+    {
+      "label": "Durable store"
+    },
+    {
+      "label": "Derive"
+    },
+    {
+      "label": "Aggregate"
+    },
+    {
+      "label": "Consume"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "fixes",
+      "type": "external",
+      "label": "Decoded fix",
+      "sublabel": "lat/lon · speed · alarm",
+      "stage": 0,
+      "row": 1,
+      "tag": "per device"
+    },
+    {
+      "id": "devices",
+      "type": "database",
+      "label": "devices",
+      "sublabel": "last fix + telemetry",
+      "stage": 1,
+      "row": 0,
+      "tag": "live state"
+    },
+    {
+      "id": "positions",
+      "type": "database",
+      "label": "positions",
+      "sublabel": "monthly partitions",
+      "stage": 1,
+      "row": 1,
+      "tag": "dedupe on fix time"
+    },
+    {
+      "id": "alerts",
+      "type": "database",
+      "label": "alerts",
+      "sublabel": "geofence + alarm events",
+      "stage": 1,
+      "row": 2,
+      "tag": "delivery log"
+    },
+    {
+      "id": "trips",
+      "type": "backend",
+      "label": "trips",
+      "sublabel": "detectTrips() window",
+      "stage": 2,
+      "row": 1,
+      "tag": "idempotent replace"
+    },
+    {
+      "id": "retention",
+      "type": "security",
+      "label": "Retention",
+      "sublabel": "plan history window",
+      "stage": 2,
+      "row": 2,
+      "tag": "drops partitions"
+    },
+    {
+      "id": "rollups",
+      "type": "database",
+      "label": "daily_rollups",
+      "sublabel": "per device, per day",
+      "stage": 3,
+      "row": 1,
+      "tag": "upsert"
+    },
+    {
+      "id": "livemap",
+      "type": "frontend",
+      "label": "Live map",
+      "sublabel": "markers + trail replay",
+      "stage": 4,
+      "row": 0,
+      "tag": "SSE"
+    },
+    {
+      "id": "analytics",
+      "type": "backend",
+      "label": "Analytics API",
+      "sublabel": "distance · idle · speed",
+      "stage": 4,
+      "row": 1,
+      "tag": "REST + GraphQL"
+    },
+    {
+      "id": "reports",
+      "type": "cloud",
+      "label": "Weekly report",
+      "sublabel": "CSV + PDF in R2",
+      "stage": 4,
+      "row": 2,
+      "tag": "scheduled"
+    }
+  ],
+  "flows": [
+    {
+      "id": "f-history",
+      "from": "fixes",
+      "to": "positions",
+      "label": "append fix",
+      "classification": "location data",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "f-state",
+      "from": "fixes",
+      "to": "devices",
+      "label": "bump state",
+      "classification": "telemetry",
+      "variant": "default",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [
+        [
+          100,
+          157
+        ]
+      ]
+    },
+    {
+      "id": "f-alerts",
+      "from": "fixes",
+      "to": "alerts",
+      "label": "fired events",
+      "classification": "tenant events",
+      "variant": "default",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [
+        [
+          100,
+          385
+        ]
+      ]
+    },
+    {
+      "id": "f-trips",
+      "from": "positions",
+      "to": "trips",
+      "label": "ordered fixes",
+      "classification": "30-day window",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "f-retention",
+      "from": "positions",
+      "to": "retention",
+      "label": "age out rows",
+      "classification": "plan limit",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [
+        [
+          315,
+          330
+        ],
+        [
+          430,
+          330
+        ],
+        [
+          430,
+          385
+        ]
+      ]
+    },
+    {
+      "id": "f-rollup",
+      "from": "trips",
+      "to": "rollups",
+      "label": "aggregates",
+      "classification": "derived",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "f-analytics",
+      "from": "rollups",
+      "to": "analytics",
+      "label": "fleet metrics",
+      "classification": "read-only",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "f-reports",
+      "from": "rollups",
+      "to": "reports",
+      "label": "weekly extract",
+      "classification": "archived",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [
+        [
+          745,
+          385
+        ]
+      ]
+    },
+    {
+      "id": "f-live",
+      "from": "devices",
+      "to": "livemap",
+      "label": "current fix",
+      "classification": "streamed",
+      "variant": "default",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Write path",
+      "items": [
+        "A duplicate retransmission hits the (device, fix_time) conflict and is dropped",
+        "The same call bumps device last_seen and merges partial telemetry attributes",
+        "Geofence evaluation runs in the same transaction as the insert"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Derived data",
+      "items": [
+        "Trip detection re-runs over a moving window and replaces that window's trips",
+        "Daily rollups upsert on (device, day), so re-running an overlap is safe",
+        "Analytics reads rollups, never a full scan of the positions partitions"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Retention",
+      "items": [
+        "Plan history windows: free 7 days, starter 90, professional 365, enterprise unlimited",
+        "Upcoming monthly partitions are provisioned ahead so ingest never misses a range",
+        "Whole-partition drops are skipped while any unlimited-retention tenant exists"
+      ]
+    }
+  ]
+}
