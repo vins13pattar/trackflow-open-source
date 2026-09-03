@@ -1,0 +1,379 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "TrackFlow — System Architecture",
+    "output": "system.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/vins13pattar/trackflow-open-source",
+      "revision": "674840f6714ae439ac659052013bf131b999d466"
+    },
+    "views": [
+      {
+        "id": "hot-path",
+        "label": "GPS hot path",
+        "focus": [
+          "trackers",
+          "ingest",
+          "api",
+          "postgres"
+        ],
+        "note": "A raw tracker frame becomes a tenant-scoped row in the partitioned positions table."
+      },
+      {
+        "id": "realtime",
+        "label": "Realtime fan-out",
+        "focus": [
+          "api",
+          "redis",
+          "web",
+          "mobile"
+        ],
+        "note": "Redis pub/sub republishes tenant positions so every API replica can serve the SSE stream."
+      },
+      {
+        "id": "async-work",
+        "label": "Scheduled work",
+        "focus": [
+          "jobs",
+          "postgres",
+          "r2store",
+          "notify"
+        ],
+        "note": "Rollups, retention and reporting run off the hot path on their own scheduler."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis 7",
+      "sublabel": "sessions · presence · pub/sub",
+      "pos": [
+        390,
+        120
+      ],
+      "size": [
+        200,
+        88
+      ],
+      "sources": [
+        {
+          "path": "apps/ingest/src/session-store.ts",
+          "label": "session store"
+        }
+      ]
+    },
+    {
+      "id": "mobile",
+      "type": "frontend",
+      "label": "apps/mobile",
+      "sublabel": "Expo phone-as-tracker",
+      "tag": "offline queue",
+      "pos": [
+        730,
+        120
+      ],
+      "size": [
+        200,
+        88
+      ]
+    },
+    {
+      "id": "trackers",
+      "type": "external",
+      "label": "GPS trackers",
+      "sublabel": "GT06 · H02 · Teltonika · NMEA +2",
+      "pos": [
+        50,
+        330
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "packages/protocols/src/index.ts",
+          "label": "decoder registry"
+        }
+      ]
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "apps/ingest",
+      "sublabel": "always-on TCP · 6 decoders",
+      "tag": "only always-on tier",
+      "pos": [
+        390,
+        330
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "apps/ingest/src/server.ts",
+          "label": "TCP listeners"
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "apps/api",
+      "sublabel": "Hono :8787 · REST + GraphQL",
+      "tag": "Workers-portable",
+      "pos": [
+        730,
+        330
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "apps/api/src/app.ts",
+          "label": "route composition"
+        }
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "apps/web",
+      "sublabel": "Next.js 16 · MapLibre live map",
+      "pos": [
+        1070,
+        330
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "apps/web/src/components/LiveMap.tsx",
+          "label": "live map"
+        }
+      ]
+    },
+    {
+      "id": "notify",
+      "type": "external",
+      "label": "Notification providers",
+      "sublabel": "email · SMS · push · webhooks",
+      "pos": [
+        50,
+        540
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "packages/notifications/src/dispatcher.ts",
+          "label": "channel dispatch"
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "RLS · partitioned positions",
+      "tag": "NOBYPASSRLS role",
+      "pos": [
+        390,
+        540
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "packages/db/src/schema.ts",
+          "label": "schema"
+        }
+      ]
+    },
+    {
+      "id": "jobs",
+      "type": "backend",
+      "label": "apps/jobs",
+      "sublabel": "rollup · retention · reports",
+      "pos": [
+        730,
+        540
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "apps/jobs/src/scheduler.ts",
+          "label": "task table"
+        }
+      ]
+    },
+    {
+      "id": "r2store",
+      "type": "cloud",
+      "label": "S3 / Cloudflare R2",
+      "sublabel": "report + export objects",
+      "pos": [
+        1070,
+        540
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "sources": [
+        {
+          "path": "packages/storage/src/index.ts",
+          "label": "object client"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "mTLS or private-gateway trust boundary",
+      "wraps": [
+        "ingest"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "frames",
+      "from": "trackers",
+      "to": "ingest",
+      "label": "raw TCP frames",
+      "variant": "emphasis"
+    },
+    {
+      "id": "sessions",
+      "from": "ingest",
+      "to": "redis",
+      "label": "IMEI session + presence",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDy": -34
+    },
+    {
+      "id": "admit",
+      "from": "ingest",
+      "to": "api",
+      "label": "admit IMEI",
+      "variant": "security"
+    },
+    {
+      "id": "sink",
+      "from": "ingest",
+      "to": "api",
+      "label": "POST /internal/positions",
+      "variant": "emphasis",
+      "labelDy": 26
+    },
+    {
+      "id": "limits",
+      "from": "api",
+      "to": "redis",
+      "label": "rate limits + fan-out",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "record",
+      "from": "api",
+      "to": "postgres",
+      "label": "recordPosition() · RLS",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "alerts",
+      "from": "api",
+      "to": "notify",
+      "label": "geofence alerts",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "stream",
+      "from": "api",
+      "to": "web",
+      "label": "SSE /positions/stream",
+      "variant": "emphasis",
+      "labelDy": -26
+    },
+    {
+      "id": "rest",
+      "from": "web",
+      "to": "api",
+      "label": "REST + GraphQL"
+    },
+    {
+      "id": "report",
+      "from": "mobile",
+      "to": "api",
+      "label": "HTTPS fix report",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 26
+    },
+    {
+      "id": "rollup",
+      "from": "jobs",
+      "to": "postgres",
+      "label": "rollup · retention"
+    },
+    {
+      "id": "archive",
+      "from": "jobs",
+      "to": "r2store",
+      "label": "weekly CSV + PDF"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Edge and ingest",
+      "items": [
+        "The only always-on tier — trackers hold TCP sockets open",
+        "Six decoders: GT06, H02, Teltonika, NMEA, Queclink, Meitrack",
+        "mTLS or private-gateway identity gates every socket before decode"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Application and realtime",
+      "items": [
+        "Hono API is Workers-portable: REST, GraphQL and OpenAPI /docs",
+        "recordPosition() de-dupes retransmissions, then evaluates geofences",
+        "Redis holds IMEI sessions, presence, rate limits and SSE fan-out"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Tenancy and scheduled work",
+      "items": [
+        "Tenant queries run as a NOSUPERUSER NOBYPASSRLS role under RLS",
+        "Migrations use ADMIN_DATABASE_URL; cross-tenant paths a system role",
+        "apps/jobs handles rollup, retention, subscriptions and weekly reports"
+      ]
+    }
+  ]
+}

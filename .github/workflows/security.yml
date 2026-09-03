@@ -25,6 +25,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --audit-level high
 
+  # Mobile has a separate npm lockfile and must be audited independently.
+  mobile-dependency-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm audit --audit-level high
+
   # Static analysis (OWASP-oriented rulesets; no token required for registry configs).
   sast:
     runs-on: ubuntu-latest

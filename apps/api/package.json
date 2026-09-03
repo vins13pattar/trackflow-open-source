@@ -20,7 +20,7 @@
     "@trackflow/storage": "workspace:*",
     "graphql": "^16.14.2",
     "graphql-yoga": "^5.21.2",
-    "hono": "^4.12.25",
+    "hono": "^4.12.34",
     "pdf-lib": "^1.17.1",
     "redis": "6.1.0",
     "zod": "^3.24.1"
