@@ -82,7 +82,7 @@ jobs:
           set -e
           kill "$API_PID" 2>/dev/null || true
           if [ "$INGEST_STATUS" -ne 0 ] || [ "$API_STATUS" -ne 0 ]; then exit 1; fi
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: authenticated-api-benchmark
@@ -96,7 +96,7 @@ jobs:
           DB_P95_BUDGET_MS: '300'
           OUTPUT: benchmarks/results/ci-db.json
         run: pnpm benchmark:db:local
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: postgresql-benchmark
@@ -114,7 +114,7 @@ jobs:
           REALTIME_MAX_LOSS: '0'
           OUTPUT: benchmarks/results/ci-realtime.json
         run: pnpm benchmark:realtime:local
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: realtime-benchmark
@@ -133,7 +133,7 @@ jobs:
           DOMAIN_REPORT_P95_BUDGET_MS: '1000'
           OUTPUT: benchmarks/results/ci-domain.json
         run: pnpm benchmark:domain:local
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: domain-workflow-benchmark
