@@ -1,9 +1,9 @@
 'use client';
 
-import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useRef } from 'react';
 import { MAP_STYLE } from '@/lib/api';
+import { maplibregl } from '@/lib/maplibre';
 import type { GeofenceSummary } from '@/lib/types';
 import { circleToPolygon } from '@/lib/utils';
 
