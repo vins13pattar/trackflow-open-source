@@ -1,0 +1,15 @@
+{
+  "$comment": "Advisories allowed to pass `npm run audit:ci`. One GHSA per entry, added only when no patched release exists. Rationale and retirement condition also live in /SECURITY.md. Consumed by scripts/audit-ci.mjs.",
+  "ignoreGhsas": {
+    "GHSA-vfj7-8cjw-p6xm": {
+      "package": "braces",
+      "reason": "No patched release exists: 3.0.3 is both the newest published version and the vulnerable one. Reached only through the Expo/Metro build toolchain (metro-file-map > micromatch > braces), which never ships in the app bundle.",
+      "retiredWhen": "A patched braces release, or a Metro that drops micromatch."
+    },
+    "GHSA-86w9-cpqp-85rv": {
+      "package": "node-forge",
+      "reason": "No patched release exists: the advisory covers <=1.4.0 and 1.4.0 is the newest published version. Reached only through @expo/cli > @expo/code-signing-certificates, which runs on a developer machine during `expo start`; TrackFlow does not use Expo code signing, and no node-forge code reaches the device.",
+      "retiredWhen": "A patched node-forge release, or @expo/cli dropping @expo/code-signing-certificates."
+    }
+  }
+}
