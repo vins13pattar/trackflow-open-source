@@ -39,7 +39,10 @@ jobs:
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
       - run: npm ci --legacy-peer-deps
-      - run: npm audit --audit-level high
+      # Wraps `npm audit` to honour apps/mobile/audit-exceptions.json, since npm
+      # has no equivalent of pnpm's auditConfig.ignoreGhsas. Still fails on any
+      # high/critical advisory that is not individually excepted.
+      - run: npm run audit:ci
 
   # Static analysis (OWASP-oriented rulesets; no token required for registry configs).
   sast:
